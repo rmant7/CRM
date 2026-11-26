@@ -103,6 +103,6 @@ class WorkspaceFlowTest {
     private fun assertDirection() {
         val rtl = localeArg() == "iw" || localeArg() == "he"
         val expected = if (rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
-        assertEquals(expected, rule.activity.window.decorView.layoutDirection)
+        assertEquals(expected, rule.activity.resources.configuration.layoutDirection)
     }
 }

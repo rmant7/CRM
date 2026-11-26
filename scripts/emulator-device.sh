@@ -35,17 +35,19 @@ apply_locale() {
   local lang country
   case "$tag" in
     ru) lang=ru; country=RU ;;
-    iw|he) lang=iw; country=IL ;;
+    iw|he) lang=he; country=IL ;;
     *) lang=en; country=US ;;
   esac
   adb shell setprop persist.sys.locale "${lang}-${country}" || true
   adb shell setprop persist.sys.language "$lang" || true
   adb shell setprop persist.sys.country "$country" || true
+  adb shell settings put system system_locales "${lang}-${country}" || true
+  adb shell cmd locale set-app-locales "$PKG" --locales "$lang" || true
 }
 
 for locale in $LOCALES; do
-  apply_locale "$locale"
   adb shell pm clear "$PKG" >/dev/null
+  apply_locale "$locale"
   adb logcat -c || true
   set +e
   adb shell am instrument -w -e locale "$locale" \
