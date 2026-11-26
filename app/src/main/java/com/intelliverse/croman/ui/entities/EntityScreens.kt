@@ -134,7 +134,12 @@ fun EntityListScreen(workspaceId: String, template: TemplateFile, typeKey: Strin
                         }
                     }
                 }
-                data.isEmpty() -> EmptyState(stringResource(R.string.empty_entities_title), stringResource(R.string.empty_entities_body), stringResource(R.string.add), onCreate)
+                data.isEmpty() -> EmptyState(
+                    type.emptyTitle?.let { l10n(it) } ?: stringResource(R.string.empty_entities_title),
+                    type.emptyBody?.let { l10n(it) } ?: stringResource(R.string.empty_entities_body),
+                    stringResource(R.string.add),
+                    onCreate,
+                )
                 else -> LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
                     items(data, key = { it.id }) { row ->
                         Card(onClick = { onOpen(row.id) }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {

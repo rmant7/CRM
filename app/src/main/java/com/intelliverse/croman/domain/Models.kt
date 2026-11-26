@@ -82,6 +82,9 @@ data class EntityTypeDef(
     val listBadge: String? = null,
     val listMoney: String? = null,
     val listSubtitle: List<String> = emptyList(),
+    val emptyTitle: L10n? = null,
+    val emptyBody: L10n? = null,
+    val behaviors: List<String> = emptyList(),
 )
 
 @Serializable
@@ -117,6 +120,16 @@ data class TemplateFile(
     val entityTypes: List<EntityTypeDef> = emptyList(),
     val migrations: List<MigrationDef> = emptyList(),
     val features: List<String> = emptyList(),
+    val contactProfile: ContactProfile? = null,
+)
+
+@Serializable
+data class ContactProfile(
+    val title: L10n,
+    val emptyTitle: L10n,
+    val emptyBody: L10n,
+    val kinds: List<OptionDef> = emptyList(),
+    val fields: List<FieldDef> = emptyList(),
 )
 
 data class Workspace(

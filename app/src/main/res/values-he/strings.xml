@@ -143,4 +143,15 @@
     <string name="version_label">גרסה %1$s</string>
     <string name="whatsapp">וואטסאפ</string>
     <string name="workspaces">סביבות עבודה</string>
+    <string name="backup_password">סיסמה (לא חובה)</string>
+    <string name="backup_password_confirm">אימות סיסמה</string>
+    <string name="backup_password_mismatch">הסיסמאות אינן תואמות</string>
+    <string name="backup_password_prompt">הגיבוי מוצפן. הזינו את הסיסמה. סיסמה שנשכחה לא ניתנת לשחזור.</string>
+    <string name="backup_password_warning">אם מגדירים סיסמה ושוכחים אותה, אי אפשר לשחזר את הגיבוי. השאירו ריק כדי לשמור קובץ zip רגיל.</string>
+    <string name="workspace_delete">מחיקת סביבה</string>
+    <string name="workspace_delete_body">הסביבה מוסתרת. ייצאו גיבוי חדש אם הרשומות עדיין נחוצות.</string>
+    <string name="workspace_duplicate">כבר קיימת סביבה בשם הזה</string>
+    <string name="workspace_name">שם הסביבה</string>
+    <string name="workspace_rename">שינוי שם</string>
+    <string name="workspace_separate">סוג זה כבר קיים. בחרו שם אחר כדי להוסיף עוד אחת.</string>
 </resources>

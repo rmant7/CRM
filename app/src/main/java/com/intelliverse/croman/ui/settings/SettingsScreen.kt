@@ -13,14 +13,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,9 +33,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.intelliverse.croman.BuildConfig
 import com.intelliverse.croman.R
 import com.intelliverse.croman.data.backup.BackupArchive
+import com.intelliverse.croman.data.backup.BackupTransfer
 import com.intelliverse.croman.data.repo.hideRealtorSample
 import com.intelliverse.croman.data.repo.loadRealtorSample
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -54,21 +61,42 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    val editor: WorkspaceEditorViewModel = viewModel()
     val language by container.settings.languageTag.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
     val currency by container.settings.currencyCode.collectAsStateWithLifecycle(initialValue = "")
     val workspaces by container.store.observeWorkspaces().collectAsStateWithLifecycle(initialValue = emptyList())
     val ok = stringResource(R.string.backup_ok)
     val failed = stringResource(R.string.backup_failed)
     val loaded = stringResource(R.string.sample_loaded)
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
+    val mismatch = stringResource(R.string.backup_password_mismatch)
+    val duplicate = stringResource(R.string.workspace_duplicate)
+    val separate = stringResource(R.string.workspace_separate)
+    val nameRequired = stringResource(R.string.workspace_name)
+    var addTemplateId by remember { mutableStateOf<String?>(null) }
+    var renameId by remember { mutableStateOf<String?>(null) }
+    var deleteId by remember { mutableStateOf<String?>(null) }
+    var nameDraft by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var showExport by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var passwordAgain by remember { mutableStateOf("") }
+    var pendingPassword by remember { mutableStateOf<String?>(null) }
+    var pendingImport by remember { mutableStateOf<File?>(null) }
+    var importPassword by remember { mutableStateOf("") }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
+        val secret = pendingPassword
         scope.launch {
             val success = withContext(Dispatchers.IO) {
                 runCatching {
                     container.checkpoint()
-                    val tmp = File(context.cacheDir, "croman-export.zip")
-                    BackupArchive.export(tmp, container.databaseFile(), container.photos.directory(), System.currentTimeMillis())
-                    context.contentResolver.openOutputStream(uri)?.use { output -> tmp.inputStream().use { it.copyTo(output) } }
+                    val tmp = File(context.cacheDir, "croman-export.bin")
+                    BackupArchive.export(tmp, container.databaseFile(), container.photos.directory(), System.currentTimeMillis(), secret)
+                    BackupTransfer.copyAndVerify(
+                        tmp,
+                        { context.contentResolver.openOutputStream(uri) },
+                        { context.contentResolver.openInputStream(uri) },
+                    )
                     tmp.delete()
                 }.isSuccess
             }
@@ -78,16 +106,22 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val success = withContext(Dispatchers.IO) {
+            val tmp = File(context.cacheDir, "croman-import.bin")
+            val encrypted = withContext(Dispatchers.IO) {
                 runCatching {
-                    val tmp = File(context.cacheDir, "croman-import.zip")
-                    context.contentResolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-                    BackupArchive.validate(tmp)
-                    container.importBackup(tmp)
-                    tmp.delete()
-                }.isSuccess
+                    val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("cannot open backup")
+                    input.use { src -> tmp.outputStream().use { src.copyTo(it) } }
+                    BackupArchive.isEncrypted(tmp)
+                }
             }
-            snackbar.showSnackbar(if (success) ok else failed)
+            if (encrypted.isFailure) {
+                snackbar.showSnackbar(failed)
+            } else if (encrypted.getOrThrow()) {
+                importPassword = ""
+                pendingImport = tmp
+            } else {
+                importArchive(container, tmp, null, snackbar, ok, failed)
+            }
         }
     }
     CrmScaffold(stringResource(R.string.settings), onBack, snackbarHostState = snackbar) { padding ->
@@ -101,19 +135,22 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
             }
             SectionTitle(stringResource(R.string.workspaces))
             workspaces.forEach { ws ->
-                Row(Modifier.fillMaxWidth().clickable { scope.launch { container.settings.setWorkspace(ws.id) } }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(ws.id == workspaceId, { scope.launch { container.settings.setWorkspace(ws.id) } })
-                    Text(ws.name + " · " + ws.templateId)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).clickable { scope.launch { container.settings.setWorkspace(ws.id) } }, verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(ws.id == workspaceId, { scope.launch { container.settings.setWorkspace(ws.id) } })
+                        Text(ws.name + " · " + ws.templateId)
+                    }
+                    TextButton(onClick = { renameId = ws.id; nameDraft = ws.name; nameError = null }) { Text(stringResource(R.string.workspace_rename)) }
+                    TextButton(onClick = { deleteId = ws.id }) { Text(stringResource(R.string.workspace_delete)) }
                 }
             }
             TemplateCatalog.bundled.forEach { id ->
                 val bundled = remember(id) { TemplateCatalog.load(context, id) }
                 val templateName = l10n(bundled.name)
                 OutlinedButton(onClick = {
-                    scope.launch {
-                        val newId = container.store.installWorkspace(bundled, templateName)
-                        container.settings.setWorkspace(newId)
-                    }
+                    addTemplateId = id
+                    nameDraft = templateName
+                    nameError = null
                 }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.add_workspace) + ": " + templateName) }
             }
             SectionTitle(stringResource(R.string.settings_regional))
@@ -137,13 +174,171 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
             }
             SectionTitle(stringResource(R.string.settings_backup))
             Text(stringResource(R.string.backup_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton({ exportLauncher.launch("croman-backup.zip") }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.backup_export)) }
-            OutlinedButton({ importLauncher.launch(arrayOf("application/zip")) }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.backup_import)) }
+            Text(stringResource(R.string.backup_password_warning), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton({
+                password = ""
+                passwordAgain = ""
+                showExport = true
+            }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.backup_export)) }
+            OutlinedButton({ importLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.backup_import)) }
             SectionTitle(stringResource(R.string.settings_about))
             Text(stringResource(R.string.offline_notice))
             Text(stringResource(R.string.version_label, BuildConfig.VERSION_NAME))
             Text(stringResource(R.string.copyright))
         }
+    }
+    val adding = addTemplateId
+    if (adding != null) {
+        val bundled = remember(adding) { TemplateCatalog.load(context, adding) }
+        val templateName = l10n(bundled.name)
+        AlertDialog(
+            onDismissRequest = { addTemplateId = null },
+            title = { Text(stringResource(R.string.add_workspace)) },
+            text = {
+                Column {
+                    OutlinedTextField(nameDraft, { nameDraft = it; nameError = null }, label = { Text(nameRequired) }, isError = nameError != null, supportingText = { Text(nameError.orEmpty()) })
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val names = workspaces.filter { it.templateId == adding }.map { it.name }
+                    val result = editor.validate(names, nameDraft, templateName)
+                    val clean = result.getOrNull()
+                    if (clean == null) {
+                        nameError = when (result.exceptionOrNull()?.message) {
+                            "duplicate" -> duplicate
+                            "separate-name" -> separate
+                            else -> nameRequired
+                        }
+                    } else {
+                        scope.launch {
+                            val newId = container.store.installWorkspace(bundled, clean)
+                            container.settings.setWorkspace(newId)
+                            addTemplateId = null
+                        }
+                    }
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = { TextButton(onClick = { addTemplateId = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    val renaming = renameId
+    if (renaming != null) {
+        AlertDialog(
+            onDismissRequest = { renameId = null },
+            title = { Text(stringResource(R.string.workspace_rename)) },
+            text = { OutlinedTextField(nameDraft, { nameDraft = it; nameError = null }, label = { Text(nameRequired) }, isError = nameError != null, supportingText = { Text(nameError.orEmpty()) }) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val others = workspaces.filter { it.id != renaming }.map { it.name }
+                    val result = editor.validate(others, nameDraft, "\u0000")
+                    if (result.isFailure) {
+                        nameError = if (result.exceptionOrNull()?.message == "duplicate") duplicate else nameRequired
+                    } else {
+                        scope.launch {
+                            container.store.renameWorkspace(renaming, result.getOrThrow())
+                            renameId = null
+                        }
+                    }
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = { TextButton(onClick = { renameId = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (deleteId != null) {
+        AlertDialog(
+            onDismissRequest = { deleteId = null },
+            title = { Text(stringResource(R.string.workspace_delete)) },
+            text = { Text(stringResource(R.string.workspace_delete_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = deleteId ?: return@TextButton
+                    scope.launch {
+                        container.store.softDeleteWorkspace(id)
+                        val remaining = workspaces.filter { it.id != id }
+                        if (id == workspaceId) {
+                            val next = remaining.firstOrNull()
+                            if (next != null) {
+                                container.settings.setWorkspace(next.id)
+                            } else {
+                                val fresh = container.store.installWorkspace(TemplateCatalog.load(context, "realtor"), "CRoMan")
+                                container.settings.setWorkspace(fresh)
+                            }
+                        }
+                        deleteId = null
+                    }
+                }) { Text(stringResource(R.string.workspace_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { deleteId = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (showExport) {
+        AlertDialog(
+            onDismissRequest = { showExport = false },
+            title = { Text(stringResource(R.string.backup_export)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.backup_password_warning))
+                    OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.backup_password)) })
+                    OutlinedTextField(passwordAgain, { passwordAgain = it }, label = { Text(stringResource(R.string.backup_password_confirm)) })
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (password != passwordAgain) {
+                        scope.launch { snackbar.showSnackbar(mismatch) }
+                        return@TextButton
+                    }
+                    pendingPassword = password.ifBlank { null }
+                    showExport = false
+                    exportLauncher.launch(if (password.isBlank()) "croman-backup.zip" else "croman-backup.croman")
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = { TextButton(onClick = { showExport = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (pendingImport != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text(stringResource(R.string.backup_import)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.backup_password_prompt))
+                    OutlinedTextField(importPassword, { importPassword = it }, label = { Text(stringResource(R.string.backup_password)) })
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val file = pendingImport ?: return@TextButton
+                    val secret = importPassword
+                    pendingImport = null
+                    scope.launch { importArchive(container, file, secret, snackbar, ok, failed) }
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = { TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+}
+
+private suspend fun importArchive(
+    container: com.intelliverse.croman.di.AppContainer,
+    file: File,
+    password: String?,
+    snackbar: SnackbarHostState,
+    ok: String,
+    failed: String,
+) {
+    val success = withContext(Dispatchers.IO) {
+        runCatching {
+            BackupArchive.validate(file, password)
+            container.importBackup(file, password)
+            file.delete()
+        }.isSuccess
+    }
+    if (success) {
+        container.restartProcess()
+    } else {
+        snackbar.showSnackbar(failed)
     }
 }
 

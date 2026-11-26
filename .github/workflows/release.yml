@@ -48,6 +48,12 @@ jobs:
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Test
+        run: |
+          set -euo pipefail
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          ./gradlew test --stacktrace --no-daemon
+
       - name: Build debug APK
         run: |
           set -euo pipefail
@@ -76,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES=$(cat <<EOF
-          CRoMan ${RELEASE_TAG} — offline CRM for small businesses and real-estate agents. New application id com.intelliverse.croman, so it installs beside Mantel CRM 0.1.
+          CRoMan ${RELEASE_TAG} — offline CRM for small businesses and real-estate agents. Same application id as CRoMan 0.2, so this build updates that install. Mantel CRM 0.1 stays a separate app.
 
           The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
 
@@ -86,7 +92,7 @@ jobs:
 
           ---
 
-          CRoMan ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов. Новый application id com.intelliverse.croman, ставится рядом с версией 0.1.
+          CRoMan ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов. Тот же application id, что у CRoMan 0.2, поэтому эта сборка обновляет её. Версия 0.1 остаётся отдельным приложением.
 
           APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
 

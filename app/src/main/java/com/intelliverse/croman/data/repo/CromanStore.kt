@@ -1,5 +1,6 @@
 package com.intelliverse.croman.data.repo
 
+import androidx.room.withTransaction
 import com.intelliverse.croman.data.local.ActivityEntity
 import com.intelliverse.croman.data.local.CalendarEntity
 import com.intelliverse.croman.data.local.CatalogEntity
@@ -31,6 +32,8 @@ import com.intelliverse.croman.domain.DocumentFile
 import com.intelliverse.croman.domain.EntityRow
 import com.intelliverse.croman.domain.EntityTypeDef
 import com.intelliverse.croman.domain.FieldType
+import com.intelliverse.croman.domain.LessonSeries
+import com.intelliverse.croman.domain.PackageBalance
 import com.intelliverse.croman.domain.HomeCalculator
 import com.intelliverse.croman.domain.HomeSummary
 import com.intelliverse.croman.domain.Ids
@@ -154,37 +157,57 @@ class CromanStore(
     suspend fun upgradeWorkspace(workspaceId: String, bundled: TemplateFile) {
         val current = database().workspaces().get(workspaceId) ?: return
         if (current.templateVersion >= bundled.version) return
+        val steps = TemplateMigrations.plan(bundled.migrations, current.templateVersion, bundled.version)
         val now = clock()
-        bundled.migrations.filter { it.from >= current.templateVersion && it.to <= bundled.version }
-            .sortedBy { it.from }
-            .forEach { step ->
-                step.renames.forEach { rename ->
-                    database().config().renameField(workspaceId, rename.type, rename.from, rename.to, now)
-                    database().config().renameValues(workspaceId, rename.from, rename.to, now)
-                }
-                step.splits.forEach { split ->
-                    val ids = database().entities().idsOf(workspaceId, split.type)
-                    database().entities().valuesFor(ids).filter { it.fieldKey == split.from }.forEach { row ->
-                        val migrated = TemplateMigrations.apply(
-                            mapOf(split.from to row.valueText.orEmpty()),
-                            listOf(step),
-                            step.from,
-                            step.to,
-                            split.type,
+        database().withTransaction {
+        steps.forEach { step ->
+            step.renames.forEach { rename ->
+                database().config().renameField(workspaceId, rename.type, rename.from, rename.to, now)
+                database().config().renameValues(workspaceId, rename.from, rename.to, now)
+            }
+            step.splits.forEach { split ->
+                val ids = database().entities().idsOf(workspaceId, split.type)
+                database().entities().valuesFor(ids).filter { it.fieldKey == split.from }.forEach { row ->
+                    val migrated = TemplateMigrations.apply(
+                        mapOf(split.from to row.valueText.orEmpty()),
+                        listOf(step),
+                        step.from,
+                        step.to,
+                        split.type,
+                    )
+                    migrated.forEach { (key, value) ->
+                        if (key == split.from) return@forEach
+                        database().entities().upsertValue(
+                            row.copy(id = "${row.entityId}:$key", fieldKey = key, valueText = value),
                         )
-                        migrated.forEach { (key, value) ->
-                            database().entities().upsertValue(
-                                row.copy(id = "${row.entityId}:$key", fieldKey = key, valueText = value),
-                            )
-                        }
+                    }
+                    if (migrated.keys.any { it != split.from }) {
                         database().entities().deleteValue(row.entityId, split.from)
                     }
                 }
             }
+        }
         database().workspaces().upsert(
             current.copy(templateVersion = bundled.version, sync = current.sync.copy(updatedAt = now, updatedByUserId = userId)),
         )
+        }
         audit(workspaceId, "workspaces", workspaceId, "upsert")
+    }
+
+    suspend fun renameWorkspace(id: String, name: String) {
+        val current = database().workspaces().get(id) ?: return
+        val clean = name.trim()
+        if (clean.isEmpty()) throw IllegalArgumentException("name")
+        val now = clock()
+        database().workspaces().upsert(current.copy(name = clean, sync = current.sync.copy(updatedAt = now)))
+        audit(id, "workspaces", id, "upsert")
+    }
+
+    suspend fun softDeleteWorkspace(id: String) {
+        val current = database().workspaces().get(id) ?: return
+        val now = clock()
+        database().workspaces().upsert(current.copy(sync = current.sync.copy(updatedAt = now, deletedAt = now)))
+        audit(id, "workspaces", id, "delete")
     }
 
     fun observeContacts(workspaceId: String, query: String, kind: ContactKind?): Flow<List<Contact>> =
@@ -346,8 +369,75 @@ class CromanStore(
                 )
             }
         }
+        applyLessonRules(workspaceId, id, type, title, stageKey, fields, relations, existing == null, created, now)
         audit(workspaceId, "entities", id, "upsert")
     }
+
+    private suspend fun applyLessonRules(
+        workspaceId: String,
+        id: String,
+        type: EntityTypeDef,
+        title: String,
+        stageKey: String?,
+        fields: Map<String, String>,
+        relations: Map<String, String?>,
+        isNew: Boolean,
+        created: Long,
+        now: Long,
+    ) {
+        if (isNew && type.behaviors.contains("weekly_series") && fields["recurrence"] == "weekly" && fields["series_id"].isNullOrBlank()) {
+            database().entities().upsertValue(textValue(workspaceId, id, "series_id", id, created, now))
+            val start = fields["starts_at"]?.toLongOrNull() ?: now
+            LessonSeries.weeklyStarts(start).forEach { whenStart ->
+                saveEntity(
+                    workspaceId,
+                    Ids.new(),
+                    type,
+                    title,
+                    stageKey,
+                    fields + mapOf(
+                        "series_id" to id,
+                        "starts_at" to whenStart.toString(),
+                        "status" to "planned",
+                        "package_deducted" to "false",
+                    ),
+                    relations,
+                )
+            }
+        }
+        if (type.behaviors.contains("package_deduction")) {
+            val student = relations["student"]
+            val deduct = fields["status"] == "done" && fields["payment_status"] == "package"
+            val already = if (fields.containsKey("package_deducted")) {
+                fields["package_deducted"] == "true"
+            } else {
+                entityFields(id)["package_deducted"] == "true"
+            }
+            if (!student.isNullOrBlank()) {
+                val balance = contactExtras(student)["package_balance"]?.toDoubleOrNull()?.toInt() ?: 0
+                val next = PackageBalance.next(balance, deduct, already)
+                if (next != null) {
+                    saveContactExtras(workspaceId, student, mapOf("package_balance" to next.toString()))
+                    database().entities().upsertValue(textValue(workspaceId, id, "package_deducted", "true", created, now))
+                }
+            }
+        }
+    }
+
+    private fun textValue(workspaceId: String, entityId: String, key: String, value: String, created: Long, now: Long) =
+        FieldValueEntity(
+            id = "$entityId:$key",
+            sync = stamp(workspaceId, created, now),
+            entityId = entityId,
+            fieldKey = key,
+            valueText = value,
+            valueNumber = null,
+            valueMoney = null,
+            valueDate = null,
+            valueBool = null,
+            valueRef = null,
+            valueJson = null,
+        )
 
     suspend fun softDeleteEntity(id: String) {
         val existing = database().entities().get(id) ?: return
@@ -400,21 +490,28 @@ class CromanStore(
                 entityId = stored.entityId,
             ),
         )
-        if (stored.dueAt != null) {
-            database().misc().upsertEvent(
-                CalendarEntity(
-                    id = "cal-${stored.id}",
-                    sync = stamp(stored.workspaceId, created, now),
-                    title = stored.title,
-                    startsAt = stored.dueAt,
-                    endsAt = null,
-                    contactId = stored.contactId,
-                    entityId = stored.entityId,
-                ),
-            )
-        }
+        syncCalendar(stored, created, now)
         schedule(stored)
         audit(stored.workspaceId, "tasks", stored.id, "upsert")
+    }
+
+    private suspend fun syncCalendar(task: TaskItem, created: Long, now: Long) {
+        val calendarId = "cal-${task.id}"
+        if (task.dueAt == null || task.deletedAt != null) {
+            database().misc().softDeleteEvent(calendarId, now)
+            return
+        }
+        database().misc().upsertEvent(
+            CalendarEntity(
+                id = calendarId,
+                sync = stamp(task.workspaceId, created, now),
+                title = task.title,
+                startsAt = task.dueAt,
+                endsAt = null,
+                contactId = task.contactId,
+                entityId = task.entityId,
+            ),
+        )
     }
 
     suspend fun setTaskCompleted(id: String, completed: Boolean, schedule: (TaskItem) -> Unit) {
@@ -425,9 +522,34 @@ class CromanStore(
 
     suspend fun softDeleteTask(id: String, cancel: (String) -> Unit) {
         val existing = database().tasks().get(id) ?: return
-        database().tasks().softDelete(id, clock())
+        val now = clock()
+        database().tasks().softDelete(id, now)
+        database().misc().softDeleteEvent("cal-$id", now)
         cancel(id)
         audit(existing.sync.workspaceId, "tasks", id, "delete")
+    }
+
+    suspend fun contactExtras(contactId: String): Map<String, String> = entityFields(contactId)
+
+    suspend fun saveContactExtras(workspaceId: String, contactId: String, extras: Map<String, String>) {
+        val now = clock()
+        extras.forEach { (key, value) ->
+            database().entities().upsertValue(
+                FieldValueEntity(
+                    id = "$contactId:$key",
+                    sync = stamp(workspaceId, now, now),
+                    entityId = contactId,
+                    fieldKey = key,
+                    valueText = value,
+                    valueNumber = value.replace(',', '.').toDoubleOrNull(),
+                    valueMoney = value.toLongOrNull(),
+                    valueDate = null,
+                    valueBool = null,
+                    valueRef = null,
+                    valueJson = null,
+                ),
+            )
+        }
     }
 
     suspend fun reminderTasks(): List<TaskItem> = database().tasks().reminders().map { it.toModel() }

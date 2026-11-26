@@ -460,6 +460,12 @@ interface MiscDao {
     @Query("SELECT * FROM calendar_events WHERE workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY starts_at")
     fun events(workspaceId: String): Flow<List<CalendarEntity>>
 
+    @Query("SELECT * FROM calendar_events WHERE id = :id")
+    suspend fun event(id: String): CalendarEntity?
+
+    @Query("UPDATE calendar_events SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL")
+    suspend fun softDeleteEvent(id: String, now: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMessage(entity: MessageEntity)
 

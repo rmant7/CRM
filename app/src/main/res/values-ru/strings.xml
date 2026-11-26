@@ -143,4 +143,15 @@
     <string name="version_label">Версия %1$s</string>
     <string name="whatsapp">WhatsApp</string>
     <string name="workspaces">Пространства</string>
+    <string name="backup_password">Пароль (необязательно)</string>
+    <string name="backup_password_confirm">Повторите пароль</string>
+    <string name="backup_password_mismatch">Пароли не совпадают</string>
+    <string name="backup_password_prompt">Копия зашифрована. Введите пароль. Забытый пароль восстановить нельзя.</string>
+    <string name="backup_password_warning">Если задать пароль и забыть его, копию нельзя восстановить. Оставьте поле пустым, чтобы сохранить обычный zip.</string>
+    <string name="workspace_delete">Удалить пространство</string>
+    <string name="workspace_delete_body">Пространство скрыто. Сделайте новую копию, если записи ещё нужны.</string>
+    <string name="workspace_duplicate">Пространство с таким именем уже есть</string>
+    <string name="workspace_name">Имя пространства</string>
+    <string name="workspace_rename">Переименовать</string>
+    <string name="workspace_separate">Такой тип уже есть. Укажите другое имя, чтобы добавить ещё одно.</string>
 </resources>

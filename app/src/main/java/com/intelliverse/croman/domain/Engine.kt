@@ -44,7 +44,24 @@ object TextFold {
     }
 }
 
+class TemplateMigrationException(message: String) : IllegalStateException(message)
+
 object TemplateMigrations {
+    /** Ordered steps from [fromVersion] to [toVersion]. Throws if any step is missing. Does not mutate data. */
+    fun plan(migrations: List<MigrationDef>, fromVersion: Int, toVersion: Int): List<MigrationDef> {
+        if (toVersion < fromVersion) throw TemplateMigrationException("cannot go backwards")
+        val steps = mutableListOf<MigrationDef>()
+        var version = fromVersion
+        while (version < toVersion) {
+            val step = migrations.firstOrNull { it.from == version }
+                ?: throw TemplateMigrationException("missing migration from $version toward $toVersion")
+            if (step.to <= version) throw TemplateMigrationException("migration ${step.from}->${step.to} does not advance")
+            steps += step
+            version = step.to
+        }
+        return steps
+    }
+
     fun apply(
         fields: Map<String, String>,
         migrations: List<MigrationDef>,
@@ -53,26 +70,65 @@ object TemplateMigrations {
         typeKey: String,
     ): Map<String, String> {
         val current = fields.toMutableMap()
-        var version = fromVersion
-        migrations.filter { it.from >= fromVersion && it.to <= toVersion }
-            .sortedBy { it.from }
-            .forEach { step ->
-                if (step.from != version) return@forEach
-                step.renames.filter { it.type == typeKey }.forEach { rename ->
-                    val value = current.remove(rename.from) ?: return@forEach
-                    current[rename.to] = value
+        plan(migrations, fromVersion, toVersion).forEach { step ->
+            step.renames.filter { it.type == typeKey }.forEach { rename ->
+                if (current.containsKey(rename.from)) {
+                    current[rename.to] = current.remove(rename.from)!!
                 }
-                step.splits.filter { it.type == typeKey }.forEach { split ->
-                    val raw = current.remove(split.from) ?: return@forEach
-                    val parts = raw.split(split.delimiter)
-                    split.into.forEachIndexed { index, key ->
-                        current[key] = parts.getOrElse(index) { "" }.trim()
-                    }
-                }
-                version = step.to
             }
+            step.splits.filter { it.type == typeKey }.forEach { split ->
+                val raw = current[split.from] ?: return@forEach
+                val parts = raw.split(split.delimiter)
+                split.into.forEachIndexed { index, key ->
+                    current.putIfAbsent(key, parts.getOrElse(index) { "" }.trim())
+                }
+                current.remove(split.from)
+            }
+        }
         return current
     }
+}
+
+object WorkspaceRules {
+    fun validateNewName(existingNames: List<String>, requested: String, templateDefault: String): String {
+        val name = requested.trim()
+        if (name.isEmpty()) throw IllegalArgumentException("name")
+        if (existingNames.any { it.equals(name, ignoreCase = true) }) throw IllegalArgumentException("duplicate")
+        if (existingNames.isNotEmpty() && name.equals(templateDefault.trim(), ignoreCase = true)) {
+            throw IllegalArgumentException("separate-name")
+        }
+        return name
+    }
+}
+
+object TaskLinks {
+    fun resolve(savedContactId: String?, savedEntityId: String?, routeContactId: String?, routeEntityId: String?, editing: Boolean): Pair<String?, String?> {
+        return if (editing) {
+            savedContactId to savedEntityId
+        } else {
+            routeContactId?.ifBlank { null } to routeEntityId?.ifBlank { null }
+        }
+    }
+}
+
+object LessonSeries {
+    const val WEEKS = 12
+    private const val WEEK_MS = 7L * 24 * 60 * 60 * 1000
+
+    fun weeklyStarts(firstStart: Long, weeks: Int = WEEKS): List<Long> =
+        (1 until weeks).map { firstStart + it * WEEK_MS }
+}
+
+object PackageBalance {
+    fun next(balance: Int, markDoneOnPackage: Boolean, alreadyDeducted: Boolean): Int? {
+        if (!markDoneOnPackage || alreadyDeducted) return null
+        if (balance <= 0) return null
+        return balance - 1
+    }
+}
+
+object NavLabels {
+    const val MAX_LINES = 2
 }
 
 object PhoneLinks {

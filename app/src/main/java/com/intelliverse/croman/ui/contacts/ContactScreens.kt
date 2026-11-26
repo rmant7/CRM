@@ -68,24 +68,31 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
-fun ContactsScreen(workspaceId: String, onOpen: (String) -> Unit, onCreate: () -> Unit) {
+fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String) -> Unit, onCreate: () -> Unit) {
     val store = LocalAppContainer.current.store
+    val profile = template.contactProfile
     var query by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf<ContactKind?>(null) }
     val rows by store.observeContacts(workspaceId, query, kind).collectAsStateWithLifecycle(initialValue = null)
-    CrmScaffold(stringResource(R.string.nav_contacts), floatingActionButton = { AddFab(onCreate) }) { padding ->
+    val title = profile?.title?.let { l10n(it) } ?: stringResource(R.string.nav_contacts)
+    CrmScaffold(title, floatingActionButton = { AddFab(onCreate) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             SearchField(query, { query = it }, Modifier.padding(16.dp))
-            val kindOptions = listOf("all") + ContactKind.entries.map { it.name }
-            ChipRow(kindOptions, kind?.name ?: "all", { option ->
-                if (option == "all") stringResource(R.string.filter_all) else stringResource(ContactKind.valueOf(option).label())
-            }) { selected -> kind = if (selected == "all") null else ContactKind.valueOf(selected) }
+            val kindOptions = profile?.kinds?.map { it.value }.orEmpty()
+            if (kindOptions.isNotEmpty()) {
+                ChipRow(listOf("all") + kindOptions, kind?.name?.lowercase() ?: "all", { option ->
+                    if (option == "all") stringResource(R.string.filter_all)
+                    else profile?.kinds?.firstOrNull { it.value.equals(option, true) }?.label?.let { l10n(it) } ?: option
+                }) { selected ->
+                    kind = if (selected == "all") null else runCatching { ContactKind.valueOf(selected.uppercase()) }.getOrNull()
+                }
+            }
             val data = rows
             when {
                 data == null -> LoadingBox()
                 data.isEmpty() -> EmptyState(
-                    stringResource(if (query.isBlank() && kind == null) R.string.empty_contacts_title else R.string.no_results),
-                    stringResource(if (query.isBlank() && kind == null) R.string.empty_contacts_body else R.string.no_results_body),
+                    if (query.isBlank() && kind == null) profile?.emptyTitle?.let { l10n(it) } ?: stringResource(R.string.empty_contacts_title) else stringResource(R.string.no_results),
+                    if (query.isBlank() && kind == null) profile?.emptyBody?.let { l10n(it) } ?: stringResource(R.string.empty_contacts_body) else stringResource(R.string.no_results_body),
                     if (query.isBlank() && kind == null) stringResource(R.string.add) else null,
                     if (query.isBlank() && kind == null) onCreate else null,
                 )
@@ -140,7 +147,8 @@ fun ContactDetailScreen(
         onDispose { lifecycle.removeObserver(observer) }
     }
     val person = contact
-    CrmScaffold(person?.fullName ?: stringResource(R.string.nav_contacts), onBack, snackbarHostState = snackbar, actions = {
+    val screenTitle = person?.fullName ?: template.contactProfile?.title?.let { l10n(it) } ?: stringResource(R.string.nav_contacts)
+    CrmScaffold(screenTitle, onBack, snackbarHostState = snackbar, actions = {
         if (person != null) {
             IconButton(onClick = { onEdit(person.id) }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.cd_edit)) }
             IconButton(onClick = { confirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete)) }
@@ -254,7 +262,7 @@ private fun HistoryBlock(entries: List<com.intelliverse.croman.domain.ActivityEn
 }
 
 @Composable
-fun ContactEditorScreen(workspaceId: String, contactId: String?, onBack: () -> Unit, onSaved: (String, Boolean) -> Unit) {
+fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: String?, onBack: () -> Unit, onSaved: (String, Boolean) -> Unit) {
     val store = LocalAppContainer.current.store
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -263,6 +271,7 @@ fun ContactEditorScreen(workspaceId: String, contactId: String?, onBack: () -> U
     var source by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(ContactKind.BUYER) }
+    var extras by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var ready by remember { mutableStateOf(contactId == null) }
     var error by remember { mutableStateOf(false) }
     val id = remember { contactId ?: Ids.new() }
@@ -272,31 +281,48 @@ fun ContactEditorScreen(workspaceId: String, contactId: String?, onBack: () -> U
             store.getContact(contactId)?.let {
                 name = it.fullName; phone = it.phone; email = it.email; company = it.company; source = it.source; note = it.note; kind = it.kind
             }
+            extras = store.contactExtras(contactId)
             ready = true
         }
     }
-    CrmScaffold(stringResource(if (contactId == null) R.string.new_contact else R.string.edit_contact), onBack, actions = {
+    val editorTitle = template.contactProfile?.title?.let { l10n(it) } ?: stringResource(if (contactId == null) R.string.new_contact else R.string.edit_contact)
+    CrmScaffold(editorTitle, onBack, actions = {
         TextButton(onClick = {
             if (name.isBlank()) { error = true; return@TextButton }
             scope.launch {
                 store.saveContact(Contact(id, workspaceId, name, phone, email, company, kind, source, note, System.currentTimeMillis(), System.currentTimeMillis()))
+                val extraKeys = template.contactProfile?.fields?.map { it.key }?.filter { it !in CORE_CONTACT_KEYS }.orEmpty()
+                if (extraKeys.isNotEmpty()) store.saveContactExtras(workspaceId, id, extras.filterKeys { it in extraKeys })
                 if (contactId == null) store.addActivity(workspaceId, "note", "created", id, null)
                 onSaved(id, contactId == null)
             }
         }) { Text(stringResource(R.string.save)) }
     }) { padding ->
         if (!ready) { LoadingBox(Modifier.padding(padding)); return@CrmScaffold }
+        val profileKeys = template.contactProfile?.fields?.map { it.key }?.toSet()
+        fun show(key: String) = profileKeys == null || key in profileKeys
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { OutlinedTextField(name, { name = it; error = false }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_name)) }, isError = error, singleLine = true) }
-            item { LtrField(phone, { phone = it }, stringResource(R.string.contact_phone)) }
-            item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
-            item { OutlinedTextField(company, { company = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_company)) }, singleLine = true) }
-            item { CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), ContactKind.entries, { stringResource(it.label()) }) { kind = it } }
-            item { OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_source)) }, singleLine = true) }
-            item { OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_note)) }, minLines = 2) }
+            if (show("phone")) item { LtrField(phone, { phone = it }, stringResource(R.string.contact_phone)) }
+            if (show("email")) item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
+            if (show("company")) item { OutlinedTextField(company, { company = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_company)) }, singleLine = true) }
+            if (show("kind")) item { CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), ContactKind.entries, { stringResource(it.label()) }) { kind = it } }
+            if (show("source")) item { OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_source)) }, singleLine = true) }
+            if (show("note")) item { OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_note)) }, minLines = 2) }
+            val extraFields = template.contactProfile?.fields?.filter { it.key !in CORE_CONTACT_KEYS }.orEmpty()
+            items(extraFields, key = { it.key }) { field ->
+                OutlinedTextField(
+                    extras[field.key].orEmpty(),
+                    { extras = extras + (field.key to it) },
+                    Modifier.fillMaxWidth(),
+                    label = { Text(l10n(field.label)) },
+                )
+            }
         }
     }
 }
+
+private val CORE_CONTACT_KEYS = setOf("full_name", "phone", "email", "company", "kind", "source", "note")
 
 private fun ContactKind.label(): Int = when (this) {
     ContactKind.BUYER -> R.string.kind_buyer

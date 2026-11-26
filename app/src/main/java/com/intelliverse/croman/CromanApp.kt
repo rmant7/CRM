@@ -23,9 +23,17 @@ class CromanApp : Application() {
         CoroutineScope(Dispatchers.IO).launch {
             val settings = container.settings
             val store = container.store
-            if (store.observeWorkspaces().first().isEmpty()) {
+            val installed = store.observeWorkspaces().first()
+            if (installed.isEmpty()) {
                 val id = store.installWorkspace(TemplateCatalog.load(this@CromanApp, "realtor"), "CRoMan")
                 settings.setWorkspace(id)
+            } else {
+                installed.forEach { workspace ->
+                    val bundled = runCatching { TemplateCatalog.load(this@CromanApp, workspace.templateId) }.getOrNull() ?: return@forEach
+                    if (workspace.templateVersion < bundled.version) {
+                        runCatching { store.upgradeWorkspace(workspace.id, bundled) }
+                    }
+                }
             }
             val tag = settings.languageTag.first()
             withContext(Dispatchers.Main) {

@@ -143,4 +143,15 @@
     <string name="version_label">Version %1$s</string>
     <string name="whatsapp">WhatsApp</string>
     <string name="workspaces">Workspaces</string>
+    <string name="backup_password">Password (optional)</string>
+    <string name="backup_password_confirm">Confirm password</string>
+    <string name="backup_password_mismatch">Passwords do not match</string>
+    <string name="backup_password_prompt">This backup is encrypted. Enter the password. A forgotten password cannot be recovered.</string>
+    <string name="backup_password_warning">If you set a password and forget it, this backup cannot be recovered. Leave the password empty to save an ordinary zip.</string>
+    <string name="workspace_delete">Delete workspace</string>
+    <string name="workspace_delete_body">The workspace is hidden. Export a new backup if you still need its records.</string>
+    <string name="workspace_duplicate">A workspace with this name already exists</string>
+    <string name="workspace_name">Workspace name</string>
+    <string name="workspace_rename">Rename</string>
+    <string name="workspace_separate">This type already exists. Choose a different name to add another one.</string>
 </resources>

@@ -6,6 +6,22 @@
   "dashboard": "generic",
   "messengers": ["whatsapp", "telegram", "max"],
   "features": ["catalog"],
+  "contactProfile": {
+    "title": {"en": "Students", "ru": "Ученики", "he": "תלמידים"},
+    "emptyTitle": {"en": "No students yet", "ru": "Учеников пока нет", "he": "עדיין אין תלמידים"},
+    "emptyBody": {"en": "Add a student with a parent contact, subject and package balance.", "ru": "Добавьте ученика: контакт родителя, предмет и баланс пакета.", "he": "הוסיפו תלמיד עם איש קשר של הורה, מקצוע ויתרת חבילה."},
+    "kinds": [],
+    "fields": [
+      {"key": "full_name", "label": {"en": "Student name", "ru": "Имя ученика", "he": "שם התלמיד"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "guardian", "label": {"en": "Parent / guardian", "ru": "Родитель / опекун", "he": "הורה / אפוטרופוס"}, "type": "text"},
+      {"key": "subjects", "label": {"en": "Subject(s)", "ru": "Предметы", "he": "מקצועות"}, "type": "text"},
+      {"key": "level", "label": {"en": "Level / grade", "ru": "Уровень / класс", "he": "רמה / כיתה"}, "type": "text"},
+      {"key": "lesson_price", "label": {"en": "Lesson price", "ru": "Цена урока", "he": "מחיר שיעור"}, "type": "money"},
+      {"key": "package_balance", "label": {"en": "Package balance", "ru": "Баланс пакета", "he": "יתרת חבילה"}, "type": "number"},
+      {"key": "schedule_notes", "label": {"en": "Schedule notes", "ru": "Заметки к расписанию", "he": "הערות ללוח"}, "type": "text"}
+    ]
+  },
   "messageTemplates": [
     {
       "key": "lesson",
@@ -29,12 +45,33 @@
       "key": "lesson",
       "label": {"en": "Lesson", "ru": "Урок", "he": "שיעור"},
       "listMoney": "price",
+      "listBadge": "status",
       "listSubtitle": ["subject"],
+      "emptyTitle": {"en": "No lessons yet", "ru": "Уроков пока нет", "he": "עדיין אין שיעורים"},
+      "emptyBody": {"en": "Schedule a lesson for a student. Weekly lessons repeat for 12 weeks.", "ru": "Назначьте урок ученику. Еженедельные уроки повторяются 12 недель.", "he": "קבעו שיעור לתלמיד. שיעור שבועי חוזר 12 שבועות."},
+      "behaviors": ["weekly_series", "package_deduction"],
       "relations": [
         {"key": "student", "label": {"en": "Student", "ru": "Ученик", "he": "תלמיד"}, "target": "contact"}
       ],
       "fields": [
         {"key": "subject", "label": {"en": "Subject", "ru": "Предмет", "he": "מקצוע"}, "type": "text", "required": true},
+        {"key": "starts_at", "label": {"en": "Date and time", "ru": "Дата и время", "he": "תאריך ושעה"}, "type": "date", "required": true},
+        {"key": "duration_minutes", "label": {"en": "Duration (minutes)", "ru": "Длительность (мин)", "he": "משך (דקות)"}, "type": "number"},
+        {"key": "recurrence", "label": {"en": "Repeat", "ru": "Повтор", "he": "חזרה"}, "type": "select", "options": [
+          {"value": "none", "label": {"en": "Once", "ru": "Один раз", "he": "פעם אחת"}},
+          {"value": "weekly", "label": {"en": "Every week", "ru": "Каждую неделю", "he": "כל שבוע"}}
+        ]},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "planned", "label": {"en": "Planned", "ru": "Запланирован", "he": "מתוכנן"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Проведён", "he": "התקיים"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменён", "he": "בוטל"}},
+          {"value": "no_show", "label": {"en": "No-show", "ru": "Неявка", "he": "לא הגיע"}}
+        ]},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачен", "he": "לא שולם"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачен", "he": "שולם"}},
+          {"value": "package", "label": {"en": "From package", "ru": "Из пакета", "he": "מהחבילה"}}
+        ]},
         {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
         {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "select", "options": [
           {"value": "RUB", "label": {"en": "RUB", "ru": "RUB", "he": "RUB"}},
