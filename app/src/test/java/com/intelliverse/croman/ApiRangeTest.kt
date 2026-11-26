@@ -22,6 +22,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class ApiRangeTest {
+    // Robolectric's API 36 sandbox requires Java 21. The release workflow uses JDK 21.
     @Test
     @Config(sdk = [23, 26, 30, 35, 36])
     fun cryptoRemindersAndDatabaseWork() {
