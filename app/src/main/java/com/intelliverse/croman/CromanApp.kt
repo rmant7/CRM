@@ -16,9 +16,16 @@ class CromanApp : Application() {
     lateinit var container: AppContainer
         private set
 
+    /** Set by the instrumented runner before [onCreate]. Production launches leave it null. */
+    var deviceTestLocale: String? = null
+
     override fun onCreate() {
         super.onCreate()
+        val forced = deviceTestLocale
         container = AppContainer(this)
+        if (forced != null) {
+            AppCompatDelegate.setApplicationLocales(AppLocales.list(forced))
+        }
         TaskNotifications.ensureChannel(this)
         CoroutineScope(Dispatchers.IO).launch {
             val settings = container.settings
@@ -29,7 +36,8 @@ class CromanApp : Application() {
                     runCatching { store.upgradeWorkspace(workspace.id, bundled) }
                 }
             }
-            val tag = settings.languageTag.first()
+            if (forced != null) settings.setLanguage(forced)
+            val tag = forced ?: settings.languageTag.first()
             withContext(Dispatchers.Main) {
                 val desired = AppLocales.list(tag)
                 if (AppCompatDelegate.getApplicationLocales() != desired) {

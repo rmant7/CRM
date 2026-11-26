@@ -16,9 +16,9 @@ android {
         applicationId = "com.intelliverse.croman"
         minSdk = 23
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.3.1"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 8
+        versionName = "0.3.2"
+        testInstrumentationRunner = "com.intelliverse.croman.CromanDeviceRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
