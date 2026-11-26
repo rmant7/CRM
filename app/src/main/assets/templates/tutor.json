@@ -1,0 +1,47 @@
+{
+  "id": "tutor",
+  "version": 1,
+  "name": {"en": "Tutor", "ru": "Репетитор", "he": "מורה פרטי"},
+  "country": "RU",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["catalog"],
+  "messageTemplates": [
+    {
+      "key": "lesson",
+      "label": {"en": "Lesson reminder", "ru": "Напоминание об уроке", "he": "תזכורת לשיעור"},
+      "body": {
+        "en": "Reminder: your lesson is coming up.",
+        "ru": "Напоминание: скоро урок.",
+        "he": "תזכורת: השיעור מתקרב."
+      }
+    }
+  ],
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Students", "ru": "Ученики", "he": "תלמידים"}},
+    {"route": "entities:lesson", "label": {"en": "Lessons", "ru": "Уроки", "he": "שיעורים"}},
+    {"route": "catalog", "label": {"en": "Services", "ru": "Услуги", "he": "שירותים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "lesson",
+      "label": {"en": "Lesson", "ru": "Урок", "he": "שיעור"},
+      "listMoney": "price",
+      "listSubtitle": ["subject"],
+      "relations": [
+        {"key": "student", "label": {"en": "Student", "ru": "Ученик", "he": "תלמיד"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "subject", "label": {"en": "Subject", "ru": "Предмет", "he": "מקצוע"}, "type": "text", "required": true},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
+        {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "select", "options": [
+          {"value": "RUB", "label": {"en": "RUB", "ru": "RUB", "he": "RUB"}},
+          {"value": "ILS", "label": {"en": "ILS", "ru": "ILS", "he": "ILS"}}
+        ]}
+      ]
+    }
+  ],
+  "migrations": []
+}

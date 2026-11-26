@@ -63,8 +63,8 @@ jobs:
           else
             TAG="v$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk "mantel-crm-${TAG}.apk"
-          SHA="$(sha256sum "mantel-crm-${TAG}.apk" | awk '{print $1}')"
+          cp app/build/outputs/apk/debug/app-debug.apk "croman-${TAG}.apk"
+          SHA="$(sha256sum "croman-${TAG}.apk" | awk '{print $1}')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
 
@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES=$(cat <<EOF
-          Mantel CRM ${RELEASE_TAG} — offline Android CRM for small businesses and real-estate agents.
+          CRoMan ${RELEASE_TAG} — offline CRM for small businesses and real-estate agents. New application id com.intelliverse.croman, so it installs beside Mantel CRM 0.1.
 
           The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
 
@@ -86,7 +86,7 @@ jobs:
 
           ---
 
-          Mantel CRM ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов.
+          CRoMan ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов. Новый application id com.intelliverse.croman, ставится рядом с версией 0.1.
 
           APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
 
@@ -97,10 +97,10 @@ jobs:
           )
           NOTES=$(printf '%s\n' "$NOTES" | sed 's/^[[:space:]]*//')
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "mantel-crm-${RELEASE_TAG}.apk" --clobber
+            gh release upload "$RELEASE_TAG" "croman-${RELEASE_TAG}.apk" --clobber
             gh release edit "$RELEASE_TAG" --notes "$NOTES" --title "$RELEASE_TAG"
           else
-            gh release create "$RELEASE_TAG" "mantel-crm-${RELEASE_TAG}.apk" \
+            gh release create "$RELEASE_TAG" "croman-${RELEASE_TAG}.apk" \
               --title "$RELEASE_TAG" \
               --notes "$NOTES" \
               --target "${GITHUB_SHA}"

@@ -1,0 +1,103 @@
+{
+  "id": "realtor",
+  "version": 1,
+  "name": {"en": "Realtor", "ru": "Риелтор", "he": "תיווך"},
+  "country": "*",
+  "dashboard": "realtor",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "messageTemplates": [
+    {
+      "key": "greeting",
+      "label": {"en": "Greeting", "ru": "Приветствие", "he": "ברכה"},
+      "body": {
+        "en": "Hello, this is your agent. I wanted to follow up.",
+        "ru": "Здравствуйте, это ваш агент. Хотел уточнить детали.",
+        "he": "שלום, כאן הסוכן. רציתי לעדכן."
+      }
+    }
+  ],
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:property", "label": {"en": "Listings", "ru": "Объекты", "he": "נכסים"}},
+    {"route": "entities:deal", "label": {"en": "Deals", "ru": "Сделки", "he": "עסקאות"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "property",
+      "label": {"en": "Listing", "ru": "Объект", "he": "נכס"},
+      "hasPhotos": true,
+      "listBadge": "status",
+      "listMoney": "price",
+      "listSubtitle": ["city", "address"],
+      "fields": [
+        {"key": "purpose", "label": {"en": "Listing", "ru": "Операция", "he": "סוג עסקה"}, "type": "select", "required": true, "options": [
+          {"value": "sale", "label": {"en": "Sale", "ru": "Продажа", "he": "מכירה"}},
+          {"value": "rent", "label": {"en": "Rent", "ru": "Аренда", "he": "השכרה"}}
+        ]},
+        {"key": "type", "label": {"en": "Type", "ru": "Тип", "he": "סוג נכס"}, "type": "select", "options": [
+          {"value": "apartment", "label": {"en": "Apartment", "ru": "Квартира", "he": "דירה"}},
+          {"value": "house", "label": {"en": "House", "ru": "Дом", "he": "בית"}},
+          {"value": "townhouse", "label": {"en": "Townhouse", "ru": "Таунхаус", "he": "טאוןהאוס"}},
+          {"value": "commercial", "label": {"en": "Commercial", "ru": "Коммерция", "he": "מסחרי"}},
+          {"value": "land", "label": {"en": "Land", "ru": "Участок", "he": "מגרש"}},
+          {"value": "other", "label": {"en": "Other", "ru": "Другое", "he": "אחר"}}
+        ]},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "active", "label": {"en": "Active", "ru": "Активен", "he": "פעיל"}},
+          {"value": "reserved", "label": {"en": "Reserved", "ru": "Бронь", "he": "שמור"}},
+          {"value": "sold", "label": {"en": "Sold", "ru": "Продан", "he": "נמכר"}},
+          {"value": "rented", "label": {"en": "Rented", "ru": "Сдан", "he": "הושכר"}},
+          {"value": "archived", "label": {"en": "Archived", "ru": "Архив", "he": "בארכיון"}}
+        ]},
+        {"key": "address", "label": {"en": "Address", "ru": "Адрес", "he": "כתובת"}, "type": "text"},
+        {"key": "city", "label": {"en": "City", "ru": "Город", "he": "עיר"}, "type": "text"},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
+        {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "select", "options": [
+          {"value": "ILS", "label": {"en": "ILS", "ru": "ILS", "he": "ILS"}},
+          {"value": "USD", "label": {"en": "USD", "ru": "USD", "he": "USD"}},
+          {"value": "EUR", "label": {"en": "EUR", "ru": "EUR", "he": "EUR"}},
+          {"value": "RUB", "label": {"en": "RUB", "ru": "RUB", "he": "RUB"}}
+        ]},
+        {"key": "area", "label": {"en": "Area", "ru": "Площадь", "he": "שטח"}, "type": "number"},
+        {"key": "rooms", "label": {"en": "Rooms", "ru": "Комнаты", "he": "חדרים"}, "type": "number"},
+        {"key": "floor", "label": {"en": "Floor", "ru": "Этаж", "he": "קומה"}, "type": "text"},
+        {"key": "description", "label": {"en": "Description", "ru": "Описание", "he": "תיאור"}, "type": "text"}
+      ]
+    },
+    {
+      "key": "deal",
+      "label": {"en": "Deal", "ru": "Сделка", "he": "עסקה"},
+      "listMoney": "amount",
+      "pipeline": {
+        "key": "deal",
+        "stages": [
+          {"key": "lead", "label": {"en": "Lead", "ru": "Лид", "he": "ליד"}},
+          {"key": "showing", "label": {"en": "Showing", "ru": "Показ", "he": "סיור"}},
+          {"key": "negotiation", "label": {"en": "Negotiation", "ru": "Переговоры", "he": "משא ומתן"}},
+          {"key": "contract", "label": {"en": "Contract", "ru": "Договор", "he": "חוזה"}},
+          {"key": "won", "label": {"en": "Won", "ru": "Успех", "he": "הצלחה"}, "won": true},
+          {"key": "lost", "label": {"en": "Lost", "ru": "Отказ", "he": "הפסד"}, "lost": true}
+        ]
+      },
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"},
+        {"key": "property", "label": {"en": "Listing", "ru": "Объект", "he": "נכס"}, "target": "entity:property"}
+      ],
+      "fields": [
+        {"key": "amount", "label": {"en": "Amount", "ru": "Сумма", "he": "סכום"}, "type": "money"},
+        {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "select", "options": [
+          {"value": "ILS", "label": {"en": "ILS", "ru": "ILS", "he": "ILS"}},
+          {"value": "USD", "label": {"en": "USD", "ru": "USD", "he": "USD"}},
+          {"value": "EUR", "label": {"en": "EUR", "ru": "EUR", "he": "EUR"}},
+          {"value": "RUB", "label": {"en": "RUB", "ru": "RUB", "he": "RUB"}}
+        ]},
+        {"key": "expected_close", "label": {"en": "Expected close", "ru": "Планируемое закрытие", "he": "תאריך סגירה משוער"}, "type": "date"},
+        {"key": "note", "label": {"en": "Note", "ru": "Комментарий", "he": "הערה"}, "type": "text"}
+      ]
+    }
+  ],
+  "migrations": []
+}
