@@ -1,0 +1,118 @@
+# Builds an installable APK only for version tags (vX.Y.Z) and manual runs.
+# Pushes, pull requests, and schedules do not start this workflow.
+name: Release APK
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: mantel-crm-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        run: |
+          set -euo pipefail
+          SDK="$HOME/android-sdk"
+          mkdir -p "$SDK/cmdline-tools"
+          curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          rm -rf /tmp/cmdtools
+          unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
+          rm -rf "$SDK/cmdline-tools/latest"
+          mv /tmp/cmdtools/cmdline-tools "$SDK/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare release asset
+        id: apk
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          fi
+          cp app/build/outputs/apk/debug/app-debug.apk "mantel-crm-${TAG}.apk"
+          SHA="$(sha256sum "mantel-crm-${TAG}.apk" | awk '{print $1}')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.apk.outputs.tag }}
+          RELEASE_SHA: ${{ steps.apk.outputs.sha }}
+        run: |
+          set -euo pipefail
+          NOTES=$(cat <<EOF
+          Mantel CRM ${RELEASE_TAG} — offline Android CRM for small businesses and real-estate agents.
+
+          The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
+
+          SHA-256: ${RELEASE_SHA}
+
+          Data stays on the device: no account and no network.
+
+          ---
+
+          Mantel CRM ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов.
+
+          APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
+
+          SHA-256: ${RELEASE_SHA}
+
+          Данные только на устройстве: без аккаунта и без сети.
+          EOF
+          )
+          NOTES=$(printf '%s\n' "$NOTES" | sed 's/^[[:space:]]*//')
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "mantel-crm-${RELEASE_TAG}.apk" --clobber
+            gh release edit "$RELEASE_TAG" --notes "$NOTES" --title "$RELEASE_TAG"
+          else
+            gh release create "$RELEASE_TAG" "mantel-crm-${RELEASE_TAG}.apk" \
+              --title "$RELEASE_TAG" \
+              --notes "$NOTES" \
+              --target "${GITHUB_SHA}"
+          fi
+
+      - name: Delete older releases, tags, and actions artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.apk.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 200 --json tagName --jq '.[].tagName' | while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            if [ "$tag" != "$RELEASE_TAG" ]; then
+              gh release delete "$tag" --yes --cleanup-tag
+            fi
+          done
+          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[].id' | while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}"
+          done
