@@ -10,11 +10,16 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.intelliverse.croman.domain.NavLabels
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -114,7 +119,17 @@ fun CromanRoot(initialTaskId: String?) {
                                 selected = selected,
                                 onClick = { nav.goTop(target) },
                                 icon = { Icon(iconFor(item.route), contentDescription = l10n(item.label)) },
-                                label = { Text(l10n(item.label), maxLines = 1) },
+                                alwaysShowLabel = true,
+                                label = {
+                                    Text(
+                                        l10n(item.label),
+                                        maxLines = NavLabels.MAX_LINES,
+                                        softWrap = true,
+                                        overflow = TextOverflow.Visible,
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp),
+                                    )
+                                },
                             )
                         }
                     }
@@ -126,7 +141,7 @@ fun CromanRoot(initialTaskId: String?) {
                     HomeScreen(workspace.id, template, { nav.navigate(Routes.SETTINGS) }, { nav.goTop(it) }, { nav.navigate(Routes.entity(it)) }, { nav.navigate(Routes.taskEdit(it)) })
                 }
                 composable(Routes.CONTACTS) {
-                    ContactsScreen(workspace.id, { nav.navigate(Routes.contact(it)) }, { nav.navigate(Routes.contactEdit()) })
+                    ContactsScreen(workspace.id, template, { nav.navigate(Routes.contact(it)) }, { nav.navigate(Routes.contactEdit()) })
                 }
                 composable(Routes.CONTACT, listOf(navArgument("id") { type = NavType.StringType })) { entry ->
                     ContactDetailScreen(
@@ -138,7 +153,7 @@ fun CromanRoot(initialTaskId: String?) {
                     )
                 }
                 composable(Routes.CONTACT_EDIT, listOf(navArgument("id") { type = NavType.StringType; defaultValue = "" })) { entry ->
-                    ContactEditorScreen(workspace.id, entry.arguments.arg("id"), { nav.popBackStack() }) { id, created ->
+                    ContactEditorScreen(workspace.id, template, entry.arguments.arg("id"), { nav.popBackStack() }) { id, created ->
                         nav.popBackStack(); if (created) nav.navigate(Routes.contact(id))
                     }
                 }

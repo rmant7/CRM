@@ -44,6 +44,7 @@ import com.intelliverse.croman.di.LocalAppContainer
 import com.intelliverse.croman.domain.DayWindow
 import com.intelliverse.croman.domain.Ids
 import com.intelliverse.croman.domain.TaskFilter
+import com.intelliverse.croman.domain.TaskLinks
 import com.intelliverse.croman.domain.TaskItem
 import com.intelliverse.croman.ui.components.AddFab
 import com.intelliverse.croman.ui.components.ChipRow
@@ -112,6 +113,9 @@ fun TaskEditorScreen(workspaceId: String, taskId: String?, contactId: String?, e
     var due by remember { mutableStateOf<Long?>(null) }
     var reminder by remember { mutableStateOf<Long?>(null) }
     var completed by remember { mutableStateOf(false) }
+    val createdLinks = TaskLinks.resolve(null, null, contactId, entityId, editing = false)
+    var linkedContact by remember { mutableStateOf(createdLinks.first) }
+    var linkedEntity by remember { mutableStateOf(createdLinks.second) }
     var ready by remember { mutableStateOf(taskId == null) }
     var missing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
@@ -137,6 +141,9 @@ fun TaskEditorScreen(workspaceId: String, taskId: String?, contactId: String?, e
             val task = container.store.getTask(taskId)
             if (task == null) missing = true else {
                 title = task.title; details = task.details; due = task.dueAt; reminder = task.reminderAt; completed = task.completedAt != null
+                val links = TaskLinks.resolve(task.contactId, task.entityId, contactId, entityId, editing = true)
+                linkedContact = links.first
+                linkedEntity = links.second
             }
             ready = true
         }
@@ -144,11 +151,11 @@ fun TaskEditorScreen(workspaceId: String, taskId: String?, contactId: String?, e
     CrmScaffold(stringResource(if (taskId == null) R.string.new_task else R.string.edit_task), onBack, snackbarHostState = snackbar, actions = {
         if (taskId != null) IconButton(onClick = { confirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete)) }
         TextButton(onClick = {
-            if (title.isBlank()) { error = true; return@TextButton }
+            if (!ready || missing || title.isBlank()) { error = title.isBlank(); return@TextButton }
             scope.launch {
                 val now = System.currentTimeMillis()
                 container.store.saveTask(
-                    TaskItem(id, workspaceId, title, details, due, reminder, if (completed) now else null, contactId, entityId, now, now),
+                    TaskItem(id, workspaceId, title, details, due, reminder, if (completed) now else null, linkedContact, linkedEntity, now, now),
                     container.reminders::schedule,
                 )
                 onSaved()

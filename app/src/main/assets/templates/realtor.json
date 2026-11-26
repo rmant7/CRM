@@ -6,6 +6,26 @@
   "dashboard": "realtor",
   "messengers": ["whatsapp", "telegram", "max"],
   "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No clients yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a buyer, seller, tenant or landlord.", "ru": "Добавьте покупателя, продавца, арендатора или арендодателя.", "he": "הוסיפו קונה, מוכר, שוכר או משכיר."},
+    "kinds": [
+      {"value": "buyer", "label": {"en": "Buyer", "ru": "Покупатель", "he": "קונה"}},
+      {"value": "seller", "label": {"en": "Seller", "ru": "Продавец", "he": "מוכר"}},
+      {"value": "tenant", "label": {"en": "Tenant", "ru": "Арендатор", "he": "שוכר"}},
+      {"value": "landlord", "label": {"en": "Landlord", "ru": "Арендодатель", "he": "משכיר"}}
+    ],
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "email", "label": {"en": "Email", "ru": "Эл. почта", "he": "אימייל"}, "type": "text"},
+      {"key": "company", "label": {"en": "Company", "ru": "Компания", "he": "חברה"}, "type": "text"},
+      {"key": "kind", "label": {"en": "Kind", "ru": "Тип", "he": "סוג"}, "type": "select"},
+      {"key": "source", "label": {"en": "Source", "ru": "Источник", "he": "מקור"}, "type": "text"},
+      {"key": "note", "label": {"en": "Note", "ru": "Заметка", "he": "הערה"}, "type": "text"}
+    ]
+  },
   "messageTemplates": [
     {
       "key": "greeting",
