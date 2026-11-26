@@ -10,14 +10,14 @@ val cromanKeystore = file(System.getenv("CROMAN_KEYSTORE") ?: rootProject.file("
 
 android {
     namespace = "com.intelliverse.croman"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.intelliverse.croman"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 6
-        versionName = "0.3.0"
+        minSdk = 23
+        targetSdk = 36
+        versionCode = 7
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -50,6 +50,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -70,7 +71,8 @@ android {
     }
 
     lint {
-        abortOnError = false
+        abortOnError = true
+        checkOnly += "NewApi"
     }
 
     testOptions {
@@ -126,6 +128,8 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-compose:1.9.3")
@@ -153,7 +157,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("androidx.test.ext:junit:1.2.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")

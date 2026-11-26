@@ -46,7 +46,7 @@ jobs:
           echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Select signing key
         env:
@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          ./gradlew test --stacktrace --no-daemon
+          ./gradlew test lintDebug --stacktrace --no-daemon
 
       - name: Build debug APK and instrumented tests
         run: |
@@ -98,23 +98,27 @@ jobs:
           fi
           gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-sa.json"
           gcloud config set project "$PROJECT"
+          gcloud firebase test android models list --format=json > "$RUNNER_TEMP/ftl-models.json"
+          python3 scripts/ftl-matrix.py "$RUNNER_TEMP/ftl-models.json"
           APK="app/build/outputs/apk/debug/app-debug.apk"
           TEST_APK="app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+          mapfile -t INSTR < "$RUNNER_TEMP/ftl-instrumentation.txt"
+          INST_ARGS=()
+          for device in "${INSTR[@]}"; do INST_ARGS+=(--device "$device"); done
           gcloud firebase test android run \
             --type instrumentation \
             --app "$APK" \
             --test "$TEST_APK" \
-            --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
-            --device model=MediumPhone.arm,version=28,locale=en,orientation=portrait \
+            "${INST_ARGS[@]}" \
             --timeout 20m
+          mapfile -t ROBO < "$RUNNER_TEMP/ftl-devices.txt"
+          ROBO_ARGS=()
+          for device in "${ROBO[@]}"; do ROBO_ARGS+=(--device "$device"); done
           gcloud firebase test android run \
             --type robo \
             --app "$APK" \
-            --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
-            --device model=MediumPhone.arm,version=34,locale=ru,orientation=portrait \
-            --device model=MediumPhone.arm,version=34,locale=iw,orientation=portrait \
-            --device model=MediumPhone.arm,version=28,locale=en,orientation=portrait \
-            --timeout 20m
+            "${ROBO_ARGS[@]}" \
+            --timeout 15m
           rm -f "$RUNNER_TEMP/gcp-sa.json"
 
       - name: Prepare release asset

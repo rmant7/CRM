@@ -3,6 +3,7 @@ package com.intelliverse.croman.ui.format
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.core.os.ConfigurationCompat
 import com.intelliverse.croman.R
 import com.intelliverse.croman.domain.DateTimes
 import java.time.Instant
@@ -12,7 +13,7 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
-fun appLocale(): Locale = LocalConfiguration.current.locales[0]
+fun appLocale(): Locale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0] ?: Locale.getDefault()
 
 @Composable
 fun dateTimeLabel(epoch: Long?): String {

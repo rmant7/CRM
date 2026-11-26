@@ -4,7 +4,10 @@ import com.intelliverse.croman.data.backup.BackupArchive
 import com.intelliverse.croman.data.backup.BackupException
 import com.intelliverse.croman.data.backup.BackupTransfer
 import com.intelliverse.croman.data.backup.DatabaseValidator
+import com.intelliverse.croman.data.backup.Pbkdf2
 import com.intelliverse.croman.data.backup.ZipLimits
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
 import java.io.File
 import java.io.FileOutputStream
 import java.sql.DriverManager
@@ -17,6 +20,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupSafetyTest {
+    @Test
+    fun pbkdf2MatchesThePlatformSha256Implementation() {
+        val salt = ByteArray(16) { (it + 3).toByte() }
+        val spec = PBEKeySpec("croman".toCharArray(), salt, 2_000, 256)
+        val expected = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        assertArrayEquals(expected, Pbkdf2.hmacSha256("croman".toByteArray(), salt, 2_000, 32))
+    }
+
     @Test
     fun encryptedRoundTripRestoresTheSameDatabase() {
         val root = folder("encrypted")

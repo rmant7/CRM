@@ -37,8 +37,10 @@ class AlarmReminderScheduler(private val context: Context) {
         }
     }
 
-    private fun canExact(manager: AlarmManager): Boolean =
-        Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()
+    private fun canExact(manager: AlarmManager): Boolean {
+        if (Build.VERSION.SDK_INT < 31) return true
+        return manager.canScheduleExactAlarms()
+    }
 
     fun cancel(taskId: String) {
         context.getSystemService(AlarmManager::class.java).cancel(pending(taskId))
