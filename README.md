@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.3.1 runs on Android 6.0 through Android 16 and can merge a backup from another device. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.3.2 runs on Android 6.0 through Android 16 and can merge a backup from another device. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -46,16 +46,11 @@ To switch to a private key stored in GitHub Actions:
 3. Add repository secrets `CROMAN_KEYSTORE_BASE64`, `CROMAN_STORE_PASSWORD`, `CROMAN_KEY_PASSWORD`, and `CROMAN_KEY_ALIAS`.
 4. The release workflow uses those secrets when all four are set. The first build with a new key will not install over builds signed with the test key.
 
-## Firebase Test Lab
+## Continuous integration
 
-The tag workflow runs a Robo crawl on Test Lab only when both of these exist:
+A version tag runs unit tests, then three GitHub-hosted emulators in parallel: API 23 (English), API 30, and API 36 (English, Russian, and Hebrew). If an x86_64 `google_apis` image is missing, the workflow uses the nearest one and says so. Each emulator runs the instrumented smoke tests (category picker, tutor, repair, tourism, workspace row, Hebrew right-to-left) and a 500-event monkey with a fixed seed. Screenshots and logcat are kept as Actions artifacts for 7 days. A failed test or a crash blocks the APK. If the emulator never boots, the job retries once and then publishes with `Emulator: not run (reason)`.
 
-1. Secret `GCP_SA_KEY`: the JSON key of a service account that can run Firebase Test Lab and create objects in the project's own results bucket.
-2. Secret `FIREBASE_PROJECT_ID`, or repository variable `FIREBASE_PROJECT_ID`.
-
-Results go to `gs://<project>-testlab`, not the Google-managed `test-lab-*` bucket. Objects there are deleted after 30 days. The matrix stays inside the Spark free quota: nine virtual phones (API 26 in en/ru/iw, API 30, 33, and 35 in English, API 36 in en/ru/iw). API 23 is not offered on current virtual devices; Robolectric covers it. If Test Lab cannot start because of auth, quota, or infrastructure, the APK is still published and the release notes say `Test Lab: not run (reason)`. A crawl that runs and fails blocks the release.
-
-Firebase Test Lab shuts down on 30 September 2027. See [ROADMAP.md](ROADMAP.md).
+Firebase Test Lab stays optional and does not need a Blaze plan. It runs only when the service account can, and auth, quota, or infrastructure errors still publish the APK with `Test Lab: not run (reason)`. A crawl that actually fails blocks the release. Test Lab shuts down on 30 September 2027. See [ROADMAP.md](ROADMAP.md).
 
 See [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -63,7 +58,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.3.1 работает с Android 6.0 по Android 16. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.3.2 работает с Android 6.0 по Android 16. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 
@@ -100,8 +95,10 @@ git push origin v0.3.0
 
 Секреты `CROMAN_KEYSTORE_BASE64`, `CROMAN_STORE_PASSWORD`, `CROMAN_KEY_PASSWORD`, `CROMAN_KEY_ALIAS` переключают CI на свой ключ. Первая сборка с новым ключом не встанет поверх тестовой подписи.
 
-## Firebase Test Lab
+## Непрерывная сборка
 
-Шаг в релизе запускается, только если заданы секрет `GCP_SA_KEY` и секрет или переменная `FIREBASE_PROJECT_ID`. Результаты пишутся в `gs://<project>-testlab` и удаляются через 30 дней. Матрица — девять виртуальных устройств в бесплатной квоте Spark (API 26 en/ru/iw, 30, 33 и 35 en, 36 en/ru/iw). API 23 на виртуальных устройствах нет, его покрывает Robolectric. Если Test Lab не стартовал из-за доступа, квоты или инфраструктуры, APK всё равно публикуется, а в заметках будет `Test Lab: not run (reason)`. Упавший прогон блокирует релиз.
+Тег версии запускает модульные тесты и три эмулятора GitHub параллельно: API 23 (английский), API 30 и API 36 (английский, русский и иврит). Если образа x86_64 `google_apis` нет, берётся ближайший, и это пишется в лог. На эмуляторе идут инструментальные проверки (выбор категории, репетитор, ремонт, туризм, строка пространства, иврит справа налево) и monkey на 500 событий с фиксированным зерном. Скриншоты и logcat хранятся артефактами 7 дней. Упавший тест или падение приложения блокируют APK. Если эмулятор не загрузился, попытка одна повторная, затем выпуск с пометкой `Emulator: not run (reason)`.
+
+Firebase Test Lab остаётся необязательным и не требует плана Blaze. Он запускается, только если сервисный аккаунт может, и ошибки доступа, квоты или инфраструктуры не блокируют APK (`Test Lab: not run (reason)`). Упавший прогон блокирует релиз. Test Lab отключается 30 сентября 2027 года. Подробности — в [ROADMAP.md](ROADMAP.md).
 
 Подробности — в [ARCHITECTURE.md](ARCHITECTURE.md).

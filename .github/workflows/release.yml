@@ -1,4 +1,4 @@
-# Builds an installable APK only for version tags (vX.Y.Z) and manual runs.
+# Builds an installable APK for version tags (vX.Y.Z) and manual runs.
 # Pushes, pull requests, and schedules do not start this workflow.
 name: Release APK
 
@@ -17,8 +17,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +40,6 @@ jobs:
           unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
           rm -rf "$SDK/cmdline-tools/latest"
           mv /tmp/cmdtools/cmdline-tools "$SDK/cmdline-tools/latest"
-          # GitHub-hosted runners also set ANDROID_SDK_ROOT to a different preinstalled SDK.
-          # AGP refuses to build when the two variables disagree, so both must name this SDK.
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
@@ -72,6 +71,7 @@ jobs:
           set -euo pipefail
           python3 scripts/ftl-matrix.py --self-check
           python3 scripts/ftl_outcome.py --self-check
+          python3 scripts/pick-emulator-image.py --self-check
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           ./gradlew test lintDebug --stacktrace --no-daemon
 
@@ -81,11 +81,213 @@ jobs:
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace --no-daemon
 
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: croman-apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          retention-days: 7
+
+  emulator:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - api: 23
+            locales: en
+            label: api23-en
+          - api: 30
+            locales: en ru iw
+            label: api30-en-ru-iw
+          - api: 36
+            locales: en ru iw
+            label: api36-en-ru-iw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Install Android SDK
+        run: |
+          set -euo pipefail
+          SDK="$HOME/android-sdk"
+          mkdir -p "$SDK/cmdline-tools"
+          curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          rm -rf /tmp/cmdtools
+          unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
+          rm -rf "$SDK/cmdline-tools/latest"
+          mv /tmp/cmdtools/cmdline-tools "$SDK/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+      - name: Choose system image
+        id: image
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list > "$RUNNER_TEMP/sdk-packages.txt"
+          IFS=$'\t' read -r API TARGET NOTE < <(python3 scripts/pick-emulator-image.py "${{ matrix.api }}" "$RUNNER_TEMP/sdk-packages.txt")
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          if [ -z "$NOTE" ]; then NOTE="exact"; fi
+          echo "note=$NOTE" >> "$GITHUB_OUTPUT"
+          echo "System image: API $API $TARGET x86_64 ($NOTE)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Cache AVD snapshot
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/system-images
+            ~/.android/avd
+          key: avd-${{ steps.image.outputs.api }}-${{ steps.image.outputs.target }}-x86_64
+
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: croman-apk
+          path: dist
+
+      - name: Write emulator job env
+        run: |
+          cat > "$GITHUB_WORKSPACE/emulator-job.env" <<EOF
+          CROMAN_APK=$GITHUB_WORKSPACE/dist/app-debug.apk
+          CROMAN_TEST_APK=$GITHUB_WORKSPACE/dist/app-debug-androidTest.apk
+          CROMAN_LOCALES='${{ matrix.locales }}'
+          CROMAN_API=${{ steps.image.outputs.api }}
+          CROMAN_IMAGE_NOTE='${{ steps.image.outputs.note }}'
+          CROMAN_RESULTS=$GITHUB_WORKSPACE/device-results
+          EOF
+
+      - name: Boot emulator and test
+        id: attempt1
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          CROMAN_APK: dist/app-debug.apk
+          CROMAN_TEST_APK: dist/app-debug-androidTest.apk
+          CROMAN_LOCALES: ${{ matrix.locales }}
+          CROMAN_API: ${{ steps.image.outputs.api }}
+          CROMAN_IMAGE_NOTE: ${{ steps.image.outputs.note }}
+          CROMAN_RESULTS: device-results
+        with:
+          api-level: ${{ steps.image.outputs.api }}
+          target: ${{ steps.image.outputs.target }}
+          arch: x86_64
+          cores: 2
+          ram-size: 3072
+          force-avd-creation: ${{ steps.avd-cache.outputs.cache-hit != 'true' }}
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          script: bash scripts/emulator-device.sh
+
+      - name: Classify first attempt
+        id: first
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.attempt1.outcome }}" = "success" ]; then
+            echo "kind=pass" >> "$GITHUB_OUTPUT"
+          elif [ -f device-results/status.txt ] && grep -q '^fail:' device-results/status.txt; then
+            echo "kind=fail" >> "$GITHUB_OUTPUT"
+            cat device-results/status.txt
+          else
+            echo "kind=infra" >> "$GITHUB_OUTPUT"
+            echo "First emulator attempt did not reach a test result. Retrying once."
+          fi
+
+      - name: Retry after emulator boot failure
+        id: attempt2
+        if: always() && steps.first.outputs.kind == 'infra'
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          CROMAN_APK: dist/app-debug.apk
+          CROMAN_TEST_APK: dist/app-debug-androidTest.apk
+          CROMAN_LOCALES: ${{ matrix.locales }}
+          CROMAN_API: ${{ steps.image.outputs.api }}
+          CROMAN_IMAGE_NOTE: ${{ steps.image.outputs.note }}
+          CROMAN_RESULTS: device-results
+        with:
+          api-level: ${{ steps.image.outputs.api }}
+          target: ${{ steps.image.outputs.target }}
+          arch: x86_64
+          cores: 2
+          ram-size: 3072
+          force-avd-creation: false
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          script: bash scripts/emulator-device.sh
+
+      - name: Record emulator outcome
+        id: gate
+        if: always()
+        run: |
+          set -euo pipefail
+          kind="${{ steps.first.outputs.kind }}"
+          mkdir -p device-results
+          if [ "$kind" = "pass" ] || [ "${{ steps.attempt2.outcome }}" = "success" ]; then
+            echo "block=false" >> "$GITHUB_OUTPUT"
+            echo "Emulator ${{ matrix.label }} passed." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$kind" = "fail" ] || { [ -f device-results/status.txt ] && grep -q '^fail:' device-results/status.txt; }; then
+            echo "block=true" >> "$GITHUB_OUTPUT"
+            echo "Emulator ${{ matrix.label }} failed tests or crashed." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "block=false" >> "$GITHUB_OUTPUT"
+          echo "Emulator: not run (boot or infrastructure failed after one retry, requested API ${{ matrix.api }})" | tee device-results/status.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload emulator results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-${{ matrix.label }}
+          path: device-results
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Block publishing on a real emulator failure
+        if: always() && steps.gate.outputs.block == 'true'
+        run: exit 1
+
+  testlab:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: croman-apk
+          path: dist
+
       - name: Firebase Test Lab
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_PROJECT_ID_VAR: ${{ vars.FIREBASE_PROJECT_ID }}
+          CROMAN_APK: dist/app-debug.apk
         run: |
           set -euo pipefail
           STATUS="$GITHUB_WORKSPACE/ftl-status.txt"
@@ -147,8 +349,7 @@ jobs:
           if [ "$DEVICES" -eq 0 ] || [ "$DEVICES" -gt 9 ]; then
             finish_skip "device matrix had ${DEVICES} runs; the Spark cap for this workflow is 9"
           fi
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          # Nine Robo runs stay inside the Spark daily quota. API 23 stays on Robolectric.
+          APK="${CROMAN_APK}"
           set +e
           gcloud firebase test android run \
             --type robo \
@@ -173,15 +374,44 @@ jobs:
           if [ "$KIND" = "skip" ]; then
             finish_skip "$DETAIL"
           fi
-          mkdir -p ftl-shots
-          gcloud storage ls -r "${BUCKET}/${GITHUB_RUN_ID}/robo/**" >"$RUNNER_TEMP/ftl-objects.txt" 2>/dev/null || true
-          n=0
-          while IFS= read -r object; do
-            [ -z "$object" ] && continue
-            n=$((n + 1))
-            gcloud storage cp "$object" "ftl-shots/ftl-screenshot-${n}.png" || true
-          done < <(python3 scripts/ftl_outcome.py pick-shots "$RUNNER_TEMP/ftl-objects.txt")
           record "Test Lab: passed (${DEVICES} virtual devices, results ${BUCKET}/${GITHUB_RUN_ID}/robo)"
+
+      - name: Upload Test Lab status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testlab-status
+          path: ftl-status.txt
+          retention-days: 7
+          if-no-files-found: ignore
+
+  release:
+    needs: [build, emulator, testlab]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: croman-apk
+          path: dist
+
+      - name: Download emulator results
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: emulator-*
+          path: emulator-artifacts
+
+      - name: Download Test Lab status
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: testlab-status
+          path: testlab-status
 
       - name: Prepare release asset
         id: apk
@@ -192,10 +422,31 @@ jobs:
           else
             TAG="v$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk "croman-${TAG}.apk"
+          cp dist/app-debug.apk "croman-${TAG}.apk"
           SHA="$(sha256sum "croman-${TAG}.apk" | awk '{print $1}')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = []
+          root = Path("emulator-artifacts")
+          if root.exists():
+              for status in sorted(root.rglob("status.txt")):
+                  text = status.read_text(encoding="utf-8", errors="replace").strip()
+                  if text:
+                      lines.append(text)
+          Path("emulator-summary.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+          shots = [p for p in root.rglob("*.png") if p.stat().st_size > 0] if root.exists() else []
+          preferred = [p for p in shots if any(part in p.name for part in ("home", "settings", "picker", "launch"))]
+          chosen = (preferred or shots)[:6]
+          out = Path("release-shots")
+          out.mkdir(exist_ok=True)
+          for index, src in enumerate(chosen, 1):
+              (out / f"emulator-{index}-{src.name}").write_bytes(src.read_bytes())
+          ftl = next(Path("testlab-status").rglob("ftl-status.txt"), None) if Path("testlab-status").exists() else None
+          note = ftl.read_text(encoding="utf-8", errors="replace").strip() if ftl else "Test Lab: not run (no status was recorded)"
+          Path("ftl-note.txt").write_text(note + "\n", encoding="utf-8")
+          PY
 
       - name: Publish GitHub Release
         env:
@@ -204,21 +455,22 @@ jobs:
           RELEASE_SHA: ${{ steps.apk.outputs.sha }}
         run: |
           set -euo pipefail
-          export FTL_NOTE="Test Lab: not run (no status was recorded)"
-          if [ -f ftl-status.txt ]; then
-            FTL_NOTE=$(tr '\n' ' ' < ftl-status.txt | sed 's/[[:space:]]*$//')
-            export FTL_NOTE
-          fi
+          export FTL_NOTE="$(tr '\n' ' ' < ftl-note.txt | sed 's/[[:space:]]*$//')"
+          export EMU_NOTE="$(tr '\n' ' ' < emulator-summary.txt | sed 's/[[:space:]]*$//')"
+          if [ -z "$EMU_NOTE" ]; then EMU_NOTE="Emulators: no status was recorded"; fi
           NOTES=$(python3 - <<'PY'
           import os
           note = os.environ["FTL_NOTE"]
+          emu = os.environ["EMU_NOTE"]
           tag = os.environ["RELEASE_TAG"]
           sha = os.environ["RELEASE_SHA"]
           print(f"""CRoMan {tag} — offline CRM. Signed with a stable test key. This build does not install over 0.2.0 or 0.2.1; uninstall those once. Later builds that use the same key update in place. Mantel CRM 0.1 stays a separate app.
 
-          The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
+          The APK is debug-signed so the build does not need repository secrets. Android 6.0 or newer. Allow installation from this source, then install.
 
           SHA-256: {sha}
+
+          Emulators: {emu}
 
           {note}
 
@@ -228,9 +480,11 @@ jobs:
 
           CRoMan {tag} — офлайн CRM. Подпись стабильным тестовым ключом. Эта сборка не ставится поверх 0.2.0 и 0.2.1: их нужно удалить один раз. Следующие сборки с тем же ключом обновляются на месте. Версия 0.1 остаётся отдельным приложением.
 
-          APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
+          APK подписан отладочным ключом, секреты репозитория не нужны. Android 6.0+. Разрешите установку из этого источника.
 
           SHA-256: {sha}
+
+          Эмуляторы: {emu}
 
           {note}
 
@@ -247,11 +501,11 @@ jobs:
               --notes "$NOTES" \
               --target "${GITHUB_SHA}"
           fi
-          if compgen -G "ftl-shots/*.png" > /dev/null; then
-            gh release upload "$RELEASE_TAG" ftl-shots/*.png --clobber
+          if compgen -G "release-shots/*.png" > /dev/null; then
+            gh release upload "$RELEASE_TAG" release-shots/*.png --clobber
           fi
 
-      - name: Delete older releases, tags, and actions artifacts
+      - name: Delete older releases and tags
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.apk.outputs.tag }}
@@ -263,7 +517,7 @@ jobs:
               gh release delete "$tag" --yes --cleanup-tag
             fi
           done
-          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[].id' | while IFS= read -r id; do
+          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[] | select((.name | startswith("emulator-") or startswith("testlab-")) | not) | .id' | while IFS= read -r id; do
             [ -z "$id" ] && continue
             gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}"
           done
