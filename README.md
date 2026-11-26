@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.3.1 runs on Android 6.0 through Android 16. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.3.1 runs on Android 6.0 through Android 16 and can merge a backup from another device. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -10,7 +10,7 @@ Copyright 2026 Roman Mantelmakher. Apache License 2.0.
 
 - Switch workspaces. Creating one asks for a name, and a second workspace of the same template needs its own name. You can rename or hide a workspace. The **Realtor** template covers clients, listings (with photos), a deal pipeline (list and board), tasks with local reminders, notes, search, and a home summary. The **Tutor** template uses student fields and lessons (date, duration, weekly repeat, status, payment, package balance).
 - Call, and open WhatsApp, Telegram, or MAX with a message you wrote. Which buttons appear depends on the workspace country adapter. The app records prepared / messenger opened / sent (you confirm). It never reads replies.
-- Export or import one zip (database + photos) through the system file picker. A password is optional. If you set one and forget it, that backup cannot be recovered.
+- Export or import one zip (database + photos) through the system file picker. A password is optional. If you set one and forget it, that backup cannot be recovered. Import can replace everything or merge into the data already on the device (the default when moving records from one person to another). Merging the same backup twice changes nothing. This merge is the step before a later LAN sync.
 - English, Russian, and Hebrew, with right-to-left layout for Hebrew.
 
 ## Build
@@ -76,7 +76,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - Несколько рабочих пространств. При создании нужно имя, второе пространство того же шаблона — со своим именем. Пространство можно переименовать или скрыть. Шаблон **Риелтор**: клиенты, объекты с фото, воронка сделок (список и доска), задачи с локальными напоминаниями, заметки, поиск и сводка. Шаблон **Репетитор**: поля ученика и уроки (дата, длительность, еженедельный повтор, статус, оплата, баланс пакета).
 - Звонок и кнопки WhatsApp, Telegram и MAX с заранее набранным текстом. Набор кнопок задаёт адаптер страны. Журнал: подготовлено / мессенджер открыт / отправлено (подтверждаете вы). Ответы приложение не читает.
-- Экспорт и импорт одного zip (база и фото) через системный выбор файла. Пароль необязателен. Если задать его и забыть, эту копию нельзя восстановить.
+- Экспорт и импорт одного zip (база и фото) через системный выбор файла. Пароль необязателен. Если задать его и забыть, эту копию нельзя восстановить. При импорте можно заменить всё или слить с данными на устройстве (так по умолчанию передают записи другому человеку). Повторное слияние той же копии ничего не меняет. Это шаг перед будущей синхронизацией по локальной сети.
 - Русский, английский и иврит; для иврита интерфейс справа налево.
 
 ## Сборка

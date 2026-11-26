@@ -690,6 +690,8 @@ class CromanStore(
 
     suspend fun reminderTasks(): List<TaskItem> = database().tasks().reminders().map { it.toModel() }
 
+    suspend fun reminderCandidates(): List<TaskItem> = database().tasks().reminderCandidates().map { it.toModel() }
+
     fun observeActivities(contactId: String?, entityId: String?): Flow<List<ActivityEntry>> = when {
         contactId != null -> database().activities().forContact(contactId).map { rows -> rows.map { it.toModel() } }
         entityId != null -> database().activities().forEntity(entityId).map { rows -> rows.map { it.toModel() } }

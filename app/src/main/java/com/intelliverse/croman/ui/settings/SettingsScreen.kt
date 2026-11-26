@@ -43,7 +43,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.intelliverse.croman.BuildConfig
 import com.intelliverse.croman.R
 import com.intelliverse.croman.data.backup.BackupArchive
+import com.intelliverse.croman.data.backup.BackupMerger
 import com.intelliverse.croman.data.backup.BackupTransfer
+import com.intelliverse.croman.data.backup.MergeReport
 import com.intelliverse.croman.data.repo.hideRealtorSample
 import com.intelliverse.croman.data.repo.loadRealtorSample
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -90,6 +92,11 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
     var pendingPassword by remember { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<File?>(null) }
     var importPassword by remember { mutableStateOf("") }
+    var stagedImport by remember { mutableStateOf<File?>(null) }
+    var stagedPassword by remember { mutableStateOf<String?>(null) }
+    var showImportMode by remember { mutableStateOf(false) }
+    var mergePreview by remember { mutableStateOf<MergeReport?>(null) }
+    var mergeResult by remember { mutableStateOf<MergeReport?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val secret = pendingPassword
@@ -127,7 +134,9 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
                 importPassword = ""
                 pendingImport = tmp
             } else {
-                importArchive(container, tmp, null, snackbar, ok, failed)
+                stagedImport = tmp
+                stagedPassword = null
+                showImportMode = true
             }
         }
     }
@@ -325,12 +334,85 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
             confirmButton = {
                 TextButton(onClick = {
                     val file = pendingImport ?: return@TextButton
-                    val secret = importPassword
+                    stagedImport = file
+                    stagedPassword = importPassword
                     pendingImport = null
-                    scope.launch { importArchive(container, file, secret, snackbar, ok, failed) }
+                    showImportMode = true
                 }) { Text(stringResource(R.string.save)) }
             },
             dismissButton = { TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (showImportMode && stagedImport != null) {
+        AlertDialog(
+            onDismissRequest = { showImportMode = false },
+            title = { Text(stringResource(R.string.backup_import)) },
+            text = { Text(stringResource(R.string.backup_import_choice)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val file = stagedImport ?: return@TextButton
+                    showImportMode = false
+                    scope.launch {
+                        val preview = withContext(Dispatchers.IO) {
+                            runCatching { container.previewMerge(file, stagedPassword) }.getOrNull()
+                        }
+                        if (preview == null) snackbar.showSnackbar(failed) else mergePreview = preview
+                    }
+                }) { Text(stringResource(R.string.backup_merge)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val file = stagedImport ?: return@TextButton
+                    val secret = stagedPassword
+                    showImportMode = false
+                    scope.launch { importArchive(container, file, secret, snackbar, ok, failed) }
+                }) { Text(stringResource(R.string.backup_replace)) }
+            },
+        )
+    }
+    val preview = mergePreview
+    if (preview != null) {
+        AlertDialog(
+            onDismissRequest = { mergePreview = null },
+            title = { Text(stringResource(R.string.backup_preview)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.backup_preview_hint))
+                    preview.tables.filter { it.value.added + it.value.updated + it.value.skipped > 0 }.forEach { (table, counts) ->
+                        Text(stringResource(R.string.backup_preview_line, l10n(BackupMerger.label(table)), counts.added, counts.updated, counts.skipped))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val file = stagedImport ?: return@TextButton
+                    mergePreview = null
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching { container.mergeBackup(file, stagedPassword) }.getOrNull()
+                        }
+                        if (result == null) {
+                            snackbar.showSnackbar(failed)
+                        } else {
+                            container.store.reminderCandidates().forEach { container.reminders.schedule(it) }
+                            file.delete()
+                            mergeResult = result
+                        }
+                    }
+                }) { Text(stringResource(R.string.backup_merge)) }
+            },
+            dismissButton = { TextButton(onClick = { mergePreview = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (mergeResult != null) {
+        val result = mergeResult!!
+        val added = result.tables.values.sumOf { it.added }
+        val updated = result.tables.values.sumOf { it.updated }
+        AlertDialog(
+            onDismissRequest = { container.restartProcess() },
+            title = { Text(stringResource(R.string.backup_merge_done)) },
+            text = { Text(stringResource(R.string.backup_merge_summary, added, updated)) },
+            confirmButton = { TextButton(onClick = { container.restartProcess() }) { Text(stringResource(R.string.save)) } },
         )
     }
 }

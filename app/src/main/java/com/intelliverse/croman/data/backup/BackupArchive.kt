@@ -130,6 +130,16 @@ object BackupArchive {
         }
     }
 
+    /** Extracts the database and photos into [workDir] without touching the live files. */
+    fun unpack(archive: File, password: String?, workDir: File) {
+        workDir.mkdirs()
+        val plain = materializePlain(archive, password, workDir)
+        val database = File(workDir, "croman.db")
+        val photos = File(workDir, "photos").apply { mkdirs() }
+        extract(plain, database, photos)
+        structuralCheck(database)
+    }
+
     fun isEncrypted(file: File): Boolean {
         if (!file.isFile || file.length() < MAGIC.length) return false
         val header = ByteArray(MAGIC.length)
