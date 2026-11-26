@@ -265,6 +265,21 @@ fun EntityDetailScreen(
 }
 
 @Composable
+private fun RelatedEntityMenu(
+    workspaceId: String,
+    typeKey: String,
+    label: String,
+    selected: String?,
+    onSelect: (String) -> Unit,
+) {
+    val store = LocalAppContainer.current.store
+    val rows by store.observeEntities(workspaceId, typeKey, "", null, emptyMap()).collectAsStateWithLifecycle(initialValue = emptyList())
+    CrmDropdown(label, rows.firstOrNull { it.id == selected }?.title ?: stringResource(R.string.none_option), rows, { it.title }) {
+        onSelect(it.id)
+    }
+}
+
+@Composable
 fun EntityEditorScreen(
     workspaceId: String,
     template: TemplateFile,
@@ -284,7 +299,6 @@ fun EntityEditorScreen(
     var ready by remember { mutableStateOf(entityId == null) }
     var error by remember { mutableStateOf(false) }
     val contacts by store.observeContacts(workspaceId, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
-    val properties by store.observeEntities(workspaceId, "property", "", null, emptyMap()).collectAsStateWithLifecycle(initialValue = emptyList())
     val docs by store.observeDocuments(id).collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
@@ -317,7 +331,9 @@ fun EntityEditorScreen(
             if (title.isBlank()) { error = true; return@TextButton }
             scope.launch {
                 store.saveEntity(workspaceId, id, type, title, stage, fields, relations)
-                if (entityId == null) store.addActivity(workspaceId, "note", "created", relations["client"], id)
+                val reminder = store.getTask("visit-$id")
+                if (reminder != null) container.reminders.schedule(reminder) else container.reminders.cancel("visit-$id")
+                if (entityId == null) store.addActivity(workspaceId, "note", "created", relations["client"] ?: relations["student"], id)
                 onSaved(id, entityId == null)
             }
         }) { Text(stringResource(R.string.save)) }
@@ -352,8 +368,8 @@ fun EntityEditorScreen(
                         relations = relations + (relation.key to it.id)
                     }
                 } else {
-                    CrmDropdown(l10n(relation.label), properties.firstOrNull { it.id == relations[relation.key] }?.title ?: stringResource(R.string.none_option), properties, { it.title }) {
-                        relations = relations + (relation.key to it.id)
+                    RelatedEntityMenu(workspaceId, relation.target, l10n(relation.label), relations[relation.key]) {
+                        relations = relations + (relation.key to it)
                     }
                 }
             }

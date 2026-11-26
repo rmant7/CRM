@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
@@ -39,6 +41,9 @@ data class WorkspaceEntity(
     @ColumnInfo(name = "template_id") val templateId: String,
     @ColumnInfo(name = "template_version") val templateVersion: Int,
     val country: String,
+    @ColumnInfo(name = "category", defaultValue = "") val category: String = "",
+    @ColumnInfo(name = "primary_process", defaultValue = "") val primaryProcess: String = "",
+    @ColumnInfo(name = "enabled_processes", defaultValue = "") val enabledProcesses: String = "",
 )
 
 @Entity(tableName = "entity_types", indices = [Index("workspace_id"), Index("type_key")])
@@ -507,7 +512,7 @@ interface MiscDao {
         ChangeLogEntity::class,
         ViewConfigEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class CromanDatabase : RoomDatabase() {
@@ -523,6 +528,24 @@ abstract class CromanDatabase : RoomDatabase() {
         const val NAME = "croman.db"
 
         fun create(context: Context): CromanDatabase =
-            Room.databaseBuilder(context.applicationContext, CromanDatabase::class.java, NAME).build()
+            Room.databaseBuilder(context.applicationContext, CromanDatabase::class.java, NAME)
+                .addMigrations(MIGRATION_1_2)
+                .build()
+    }
+}
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE workspaces ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE workspaces ADD COLUMN primary_process TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE workspaces ADD COLUMN enabled_processes TEXT NOT NULL DEFAULT ''")
+        db.execSQL(
+            "UPDATE workspaces SET category = 'real_estate', primary_process = 'object_deal', enabled_processes = 'object_deal' " +
+                "WHERE template_id = 'realtor' AND category = ''",
+        )
+        db.execSQL(
+            "UPDATE workspaces SET category = 'tutoring', primary_process = 'appointment', enabled_processes = 'appointment' " +
+                "WHERE template_id = 'tutor' AND category = ''",
+        )
     }
 }

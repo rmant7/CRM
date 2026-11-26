@@ -1,0 +1,37 @@
+{
+  "id": "universal",
+  "version": 1,
+  "category": "other",
+  "process": "project_order",
+  "name": {"en": "Other", "ru": "Другое", "he": "אחר"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "contactProfile": {
+    "title": {"en": "People", "ru": "Люди", "he": "אנשים"},
+    "emptyTitle": {"en": "No people yet", "ru": "Людей пока нет", "he": "עדיין אין אנשים"},
+    "emptyBody": {"en": "Add a person, then a record.", "ru": "Добавьте человека, затем запись.", "he": "הוסיפו אדם ואז רשומה."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "note", "label": {"en": "Note", "ru": "Заметка", "he": "הערה"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "People", "ru": "Люди", "he": "אנשים"}},
+    {"route": "entities:project", "label": {"en": "Records", "ru": "Записи", "he": "רשומות"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "project",
+      "label": {"en": "Record", "ru": "Запись", "he": "רשומה"},
+      "hasPhotos": true,
+      "fields": [
+        {"key": "deadline", "label": {"en": "Deadline", "ru": "Срок", "he": "יעד"}, "type": "date"},
+        {"key": "note", "label": {"en": "Note", "ru": "Заметка", "he": "הערה"}, "type": "text"}
+      ]
+    }
+  ]
+}

@@ -144,14 +144,21 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
                     TextButton(onClick = { deleteId = ws.id }) { Text(stringResource(R.string.workspace_delete)) }
                 }
             }
-            TemplateCatalog.bundled.forEach { id ->
-                val bundled = remember(id) { TemplateCatalog.load(context, id) }
-                val templateName = l10n(bundled.name)
+            com.intelliverse.croman.domain.CategoryCatalog.all.forEach { category ->
+                val templateName = l10n(category.name)
                 OutlinedButton(onClick = {
-                    addTemplateId = id
+                    addTemplateId = category.templateId
                     nameDraft = templateName
                     nameError = null
                 }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.add_workspace) + ": " + templateName) }
+            }
+            val current = workspaces.firstOrNull { it.id == workspaceId }
+            val enabled = current?.enabledProcesses.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            SectionTitle(stringResource(R.string.enable_process))
+            com.intelliverse.croman.domain.ProcessEngines.all.filter { it.key.wire !in enabled && it.key.wire != current?.primaryProcess }.forEach { engine ->
+                OutlinedButton(onClick = {
+                    scope.launch { container.store.enableProcess(workspaceId, engine.key.wire) }
+                }, modifier = Modifier.fillMaxWidth()) { Text(l10n(com.intelliverse.croman.domain.ProcessEngines.label(engine.key))) }
             }
             SectionTitle(stringResource(R.string.settings_regional))
             Text(stringResource(R.string.theme_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)

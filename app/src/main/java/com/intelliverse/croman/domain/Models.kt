@@ -121,6 +121,8 @@ data class TemplateFile(
     val migrations: List<MigrationDef> = emptyList(),
     val features: List<String> = emptyList(),
     val contactProfile: ContactProfile? = null,
+    val category: String = "",
+    val process: String = "",
 )
 
 @Serializable
@@ -141,6 +143,9 @@ data class Workspace(
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long?,
+    val category: String = "",
+    val primaryProcess: String = "",
+    val enabledProcesses: String = "",
 )
 
 data class Contact(

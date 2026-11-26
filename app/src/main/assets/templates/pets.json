@@ -1,0 +1,46 @@
+{
+  "id": "pets",
+  "version": 1,
+  "category": "pets",
+  "process": "appointment",
+  "name": {"en": "Pet services", "ru": "Услуги для животных", "he": "שירותי חיות"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "contactProfile": {
+    "title": {"en": "Owners", "ru": "Хозяева", "he": "בעלים"},
+    "emptyTitle": {"en": "No owners yet", "ru": "Хозяев пока нет", "he": "עדיין אין בעלים"},
+    "emptyBody": {"en": "Add an owner and the pet's name.", "ru": "Добавьте хозяина и кличку.", "he": "הוסיפו בעלים ושם של החיה."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Owner", "ru": "Хозяин", "he": "בעלים"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "pet_name", "label": {"en": "Pet", "ru": "Питомец", "he": "חיה"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Owners", "ru": "Хозяева", "he": "בעלים"}},
+    {"route": "entities:visit", "label": {"en": "Visits", "ru": "Визиты", "he": "ביקורים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "visit",
+      "label": {"en": "Visit", "ru": "Визит", "he": "ביקור"},
+      "listBadge": "status",
+      "behaviors": ["visit_reminder"],
+      "relations": [
+        {"key": "client", "label": {"en": "Owner", "ru": "Хозяин", "he": "בעלים"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "starts_at", "label": {"en": "Date and time", "ru": "Дата и время", "he": "תאריך ושעה"}, "type": "date"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "booked", "label": {"en": "Booked", "ru": "Записан", "he": "נקבע"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Состоялся", "he": "התקיים"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменён", "he": "בוטל"}}
+        ]},
+        {"key": "remind_at", "label": {"en": "Reminder", "ru": "Напоминание", "he": "תזכורת"}, "type": "date"}
+      ]
+    }
+  ]
+}

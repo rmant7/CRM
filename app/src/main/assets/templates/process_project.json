@@ -1,0 +1,22 @@
+{
+  "id": "process_project",
+  "version": 1,
+  "process": "project_order",
+  "name": {"en": "Projects", "ru": "Проекты", "he": "פרויקטים"},
+  "country": "*",
+  "dashboard": "generic",
+  "menu": [
+    {"route": "entities:project", "label": {"en": "Projects", "ru": "Проекты", "he": "פרויקטים"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "project",
+      "label": {"en": "Project", "ru": "Проект", "he": "פרויקט"},
+      "hasPhotos": true,
+      "fields": [
+        {"key": "deadline", "label": {"en": "Deadline", "ru": "Срок", "he": "יעד"}, "type": "date"},
+        {"key": "prepayment", "label": {"en": "Prepayment", "ru": "Предоплата", "he": "מקדמה"}, "type": "money"}
+      ]
+    }
+  ]
+}

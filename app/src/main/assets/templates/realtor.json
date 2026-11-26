@@ -1,6 +1,8 @@
 {
   "id": "realtor",
   "version": 1,
+  "category": "real_estate",
+  "process": "object_deal",
   "name": {"en": "Realtor", "ru": "Риелтор", "he": "תיווך"},
   "country": "*",
   "dashboard": "realtor",

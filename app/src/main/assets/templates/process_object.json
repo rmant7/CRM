@@ -1,0 +1,23 @@
+{
+  "id": "process_object",
+  "version": 1,
+  "process": "object_deal",
+  "name": {"en": "Objects and deals", "ru": "Объекты и сделки", "he": "נכסים ועסקאות"},
+  "country": "*",
+  "dashboard": "generic",
+  "menu": [
+    {"route": "entities:listing", "label": {"en": "Objects", "ru": "Объекты", "he": "נכסים"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "listing",
+      "label": {"en": "Object", "ru": "Объект", "he": "נכס"},
+      "hasPhotos": true,
+      "listMoney": "price",
+      "fields": [
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
+        {"key": "address", "label": {"en": "Address", "ru": "Адрес", "he": "כתובת"}, "type": "text"}
+      ]
+    }
+  ]
+}

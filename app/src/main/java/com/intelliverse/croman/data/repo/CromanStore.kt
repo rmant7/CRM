@@ -33,7 +33,9 @@ import com.intelliverse.croman.domain.EntityRow
 import com.intelliverse.croman.domain.EntityTypeDef
 import com.intelliverse.croman.domain.FieldType
 import com.intelliverse.croman.domain.LessonSeries
-import com.intelliverse.croman.domain.PackageBalance
+import com.intelliverse.croman.domain.AppointmentEngine
+import com.intelliverse.croman.domain.CategoryCatalog
+import com.intelliverse.croman.domain.PackageCharge
 import com.intelliverse.croman.domain.HomeCalculator
 import com.intelliverse.croman.domain.HomeSummary
 import com.intelliverse.croman.domain.Ids
@@ -89,6 +91,9 @@ class CromanStore(
                 templateId = template.id,
                 templateVersion = template.version,
                 country = template.country,
+                category = template.category.ifBlank { CategoryCatalog.byTemplate(template.id)?.id.orEmpty() },
+                primaryProcess = template.process.ifBlank { CategoryCatalog.byTemplate(template.id)?.process?.wire.orEmpty() },
+                enabledProcesses = template.process.ifBlank { CategoryCatalog.byTemplate(template.id)?.process?.wire.orEmpty() },
             ),
         )
         fault("workspace-row")
@@ -209,6 +214,18 @@ class CromanStore(
         if (clean.isEmpty()) throw IllegalArgumentException("name")
         val now = clock()
         database().workspaces().upsert(current.copy(name = clean, sync = current.sync.copy(updatedAt = now)))
+        audit(id, "workspaces", id, "upsert")
+    }
+
+    suspend fun enableProcess(id: String, process: String) {
+        val current = database().workspaces().get(id) ?: return
+        val keys = current.enabledProcesses.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+        if (current.primaryProcess.isNotBlank()) keys.add(current.primaryProcess)
+        keys.add(process)
+        val now = clock()
+        database().workspaces().upsert(
+            current.copy(enabledProcesses = keys.joinToString(","), sync = current.sync.copy(updatedAt = now)),
+        )
         audit(id, "workspaces", id, "upsert")
     }
 
@@ -411,30 +428,94 @@ class CromanStore(
                         "series_id" to id,
                         "starts_at" to whenStart.toString(),
                         "status" to "planned",
-                        "package_deducted" to "false",
                     ),
                     relations,
                 )
             }
         }
         if (type.behaviors.contains("package_deduction")) {
-            val student = relations["student"]
-            val deduct = fields["status"] == "done" && fields["payment_status"] == "package"
-            val already = if (fields.containsKey("package_deducted")) {
-                fields["package_deducted"] == "true"
-            } else {
-                entityFields(id)["package_deducted"] == "true"
-            }
-            if (!student.isNullOrBlank()) {
-                val balance = contactExtras(student)["package_balance"]?.toDoubleOrNull()?.toInt() ?: 0
-                val next = PackageBalance.next(balance, deduct, already)
-                if (next != null) {
-                    saveContactExtras(workspaceId, student, mapOf("package_balance" to next.toString()))
-                    database().entities().upsertValue(textValue(workspaceId, id, "package_deducted", "true", created, now))
-                }
-            }
+            reconcilePackage(
+                workspaceId,
+                id,
+                fields["status"],
+                fields["payment_status"],
+                relations["student"] ?: relations["client"],
+                deleted = false,
+                created,
+                now,
+            )
+        }
+        syncVisitReminder(workspaceId, id, type, title, fields, relations, created, now)
+    }
+
+    private suspend fun syncVisitReminder(
+        workspaceId: String,
+        id: String,
+        type: EntityTypeDef,
+        title: String,
+        fields: Map<String, String>,
+        relations: Map<String, String?>,
+        created: Long,
+        now: Long,
+    ) {
+        if (!type.behaviors.contains(AppointmentEngine.REMINDER)) return
+        val taskId = "visit-$id"
+        val whenAt = fields["remind_at"]?.toLongOrNull()
+        val contact = relations["student"] ?: relations["client"]
+        if (whenAt == null) {
+            database().tasks().softDelete(taskId, now)
+            database().misc().softDeleteEvent("cal-$taskId", now)
+            return
+        }
+        val task = TaskItem(taskId, workspaceId, title.trim(), "", whenAt, whenAt, null, contact, id, created, now)
+        database().tasks().upsert(
+            TaskEntity(
+                id = taskId,
+                sync = stamp(workspaceId, created, now),
+                title = task.title,
+                details = "",
+                dueAt = whenAt,
+                reminderAt = whenAt,
+                completedAt = null,
+                contactId = contact,
+                entityId = id,
+            ),
+        )
+        syncCalendar(task, created, now)
+    }
+
+    private suspend fun reconcilePackage(
+        workspaceId: String,
+        lessonId: String,
+        status: String?,
+        payment: String?,
+        student: String?,
+        deleted: Boolean,
+        created: Long,
+        now: Long,
+    ) {
+        val chargedTo = entityFields(lessonId)[PackageCharge.CHARGED_STUDENT]
+        val balances = listOfNotNull(chargedTo, student).filter { it.isNotBlank() }.distinct()
+            .associateWith { packageBalance(it) }
+        val (nextCharged, deltas) = PackageCharge.reconcile(
+            chargedTo,
+            PackageCharge.counts(status, payment, student, deleted),
+            student,
+        ) { who -> balances[who] ?: 0 }
+        deltas.forEach { (who, delta) ->
+            saveContactExtras(workspaceId, who, mapOf("package_balance" to (packageBalance(who) + delta).toString()))
+        }
+        if (nextCharged.isNullOrBlank()) {
+            database().entities().deleteValue(lessonId, PackageCharge.CHARGED_STUDENT)
+        } else {
+            database().entities().upsertValue(
+                textValue(workspaceId, lessonId, PackageCharge.CHARGED_STUDENT, nextCharged, created, now),
+            )
         }
     }
+
+    private suspend fun packageBalance(contactId: String): Int =
+        contactExtras(contactId)["package_balance"]?.toDoubleOrNull()?.toInt() ?: 0
 
     private fun textValue(workspaceId: String, entityId: String, key: String, value: String, created: Long, now: Long) =
         FieldValueEntity(
@@ -453,9 +534,47 @@ class CromanStore(
 
     suspend fun softDeleteEntity(id: String) {
         val existing = database().entities().get(id) ?: return
+        if (existing.sync.deletedAt != null) return
         val now = clock()
-        database().entities().softDelete(id, now)
-        audit(existing.sync.workspaceId, "entities", id, "delete")
+        database().withTransaction {
+            val fields = entityFields(id)
+            val student = entityRelations(id)["student"] ?: entityRelations(id)["client"]
+            database().entities().softDelete(id, now)
+            database().tasks().softDelete("visit-$id", now)
+            database().misc().softDeleteEvent("cal-visit-$id", now)
+            reconcilePackage(
+                existing.sync.workspaceId,
+                id,
+                fields["status"],
+                fields["payment_status"],
+                student,
+                deleted = true,
+                existing.sync.createdAt,
+                now,
+            )
+            audit(existing.sync.workspaceId, "entities", id, "delete")
+        }
+    }
+
+    suspend fun restoreEntity(id: String) {
+        val existing = database().entities().get(id) ?: return
+        val now = clock()
+        database().withTransaction {
+            database().entities().upsert(existing.copy(sync = existing.sync.copy(updatedAt = now, deletedAt = null)))
+            val fields = entityFields(id)
+            val student = entityRelations(id)["student"] ?: entityRelations(id)["client"]
+            reconcilePackage(
+                existing.sync.workspaceId,
+                id,
+                fields["status"],
+                fields["payment_status"],
+                student,
+                deleted = false,
+                existing.sync.createdAt,
+                now,
+            )
+            audit(existing.sync.workspaceId, "entities", id, "upsert")
+        }
     }
 
     fun observeTasks(workspaceId: String, filter: TaskFilter, query: String): Flow<List<TaskItem>> =
@@ -735,6 +854,7 @@ class CromanStore(
 
     private fun WorkspaceEntity.toModel() = Workspace(
         id, name, templateId, templateVersion, country, sync.createdAt, sync.updatedAt, sync.deletedAt,
+        category, primaryProcess, enabledProcesses,
     )
 
     private fun ContactEntity.toModel() = Contact(

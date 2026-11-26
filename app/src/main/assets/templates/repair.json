@@ -1,0 +1,53 @@
+{
+  "id": "repair",
+  "version": 1,
+  "category": "repair",
+  "process": "field_service",
+  "name": {"en": "Home repair", "ru": "Ремонт дома", "he": "שיפוץ הבית"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Customers", "ru": "Заказчики", "he": "לקוחות"},
+    "emptyTitle": {"en": "No customers yet", "ru": "Заказчиков пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a customer, then a request with an address.", "ru": "Добавьте заказчика, затем заявку с адресом.", "he": "הוסיפו לקוח ואז קריאה עם כתובת."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Customers", "ru": "Заказчики", "he": "לקוחות"}},
+    {"route": "entities:request", "label": {"en": "Requests", "ru": "Заявки", "he": "קריאות"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "request",
+      "label": {"en": "Request", "ru": "Заявка", "he": "קריאה"},
+      "hasPhotos": true,
+      "listBadge": "status",
+      "listMoney": "estimate",
+      "emptyTitle": {"en": "No requests yet", "ru": "Заявок пока нет", "he": "עדיין אין קריאות"},
+      "emptyBody": {"en": "Add an address, an estimate and photos.", "ru": "Укажите адрес, смету и фото.", "he": "הוסיפו כתובת, הצעת מחיר ותמונות."},
+      "relations": [
+        {"key": "client", "label": {"en": "Customer", "ru": "Заказчик", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "address", "label": {"en": "Address", "ru": "Адрес", "he": "כתובת"}, "type": "text", "required": true},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "new", "label": {"en": "New", "ru": "Новая", "he": "חדשה"}},
+          {"value": "estimated", "label": {"en": "Estimated", "ru": "Смета", "he": "הצעה"}},
+          {"value": "scheduled", "label": {"en": "Scheduled", "ru": "Назначена", "he": "נקבעה"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Готово", "he": "בוצעה"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменена", "he": "בוטלה"}}
+        ]},
+        {"key": "estimate", "label": {"en": "Estimate", "ru": "Смета", "he": "הצעת מחיר"}, "type": "money"},
+        {"key": "materials", "label": {"en": "Materials", "ru": "Материалы", "he": "חומרים"}, "type": "text"},
+        {"key": "warranty_end", "label": {"en": "Warranty end", "ru": "Конец гарантии", "he": "סוף אחריות"}, "type": "date"}
+      ]
+    }
+  ]
+}

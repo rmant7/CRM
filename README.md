@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for a small business. Version 0.2.2 is aimed at an individual real-estate agent and a tutor, and other professions can be added as workspace templates. There is no account and no network permission.
+Offline CRM for independent specialists and small teams. Version 0.3.0 starts from real estate and tutors and adds category templates for other work. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -29,8 +29,8 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`
 GitHub Actions builds only on tags `v*.*.*` and on a manual run. It runs `./gradlew test` before the APK and publishes `croman-vX.Y.Z.apk`. Older releases, tags, and Actions artifacts are deleted.
 
 ```bash
-git tag v0.2.2
-git push origin v0.2.2
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 ## Signing
@@ -66,7 +66,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для малого бизнеса. Версия 0.2.2 рассчитана на частного риелтора и репетитора; другие профессии добавляются шаблонами рабочего пространства. Аккаунта нет, разрешения на интернет нет.
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.3.0 начинается с недвижимости и репетиторов и добавляет шаблоны других категорий. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 
@@ -91,8 +91,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 Сборка только по тегам `v*.*.*` и вручную. Сначала `./gradlew test`, затем APK `croman-vX.Y.Z.apk`. Старые релизы, теги и артефакты удаляются.
 
 ```bash
-git tag v0.2.2
-git push origin v0.2.2
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 ## Подпись
