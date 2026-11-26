@@ -48,17 +48,14 @@ To switch to a private key stored in GitHub Actions:
 
 ## Firebase Test Lab
 
-The tag workflow builds instrumented tests, then runs them on Test Lab only when both of these exist:
+The tag workflow runs a Robo crawl on Test Lab only when both of these exist:
 
-1. Secret `GCP_SA_KEY`: the JSON key of a service account that can run Firebase Test Lab.
+1. Secret `GCP_SA_KEY`: the JSON key of a service account that can run Firebase Test Lab and create objects in the project's own results bucket.
 2. Secret `FIREBASE_PROJECT_ID`, or repository variable `FIREBASE_PROJECT_ID`.
 
-If either is missing, the step logs a skip and the APK is still published. When both are set, the workflow runs:
+Results go to `gs://<project>-testlab`, not the Google-managed `test-lab-*` bucket. Objects there are deleted after 30 days. The matrix stays inside the Spark free quota: nine virtual phones (API 26 in en/ru/iw, API 30, 33, and 35 in English, API 36 in en/ru/iw). API 23 is not offered on current virtual devices; Robolectric covers it. If Test Lab cannot start because of auth, quota, or infrastructure, the APK is still published and the release notes say `Test Lab: not run (reason)`. A crawl that runs and fails blocks the release.
 
-- instrumented UI tests (realtor home, tutor students) on a virtual Android 14 phone and a virtual Android 9 phone
-- a Robo crawl on Android 14 in English, Russian, and Hebrew (`iw`), plus Android 9 in English
-
-Screenshots and video are in the Test Lab results bucket printed by `gcloud`.
+Firebase Test Lab shuts down on 30 September 2027. See [ROADMAP.md](ROADMAP.md).
 
 See [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -105,6 +102,6 @@ git push origin v0.3.0
 
 ## Firebase Test Lab
 
-Шаг в релизе запускается, только если заданы секрет `GCP_SA_KEY` и секрет или переменная `FIREBASE_PROJECT_ID`. Иначе он пишет, что пропущен, и APK всё равно публикуется. При включении: инструментальные тесты на Android 14 и Android 9 и Robo на Android 14 (en, ru, iw) и Android 9 (en).
+Шаг в релизе запускается, только если заданы секрет `GCP_SA_KEY` и секрет или переменная `FIREBASE_PROJECT_ID`. Результаты пишутся в `gs://<project>-testlab` и удаляются через 30 дней. Матрица — девять виртуальных устройств в бесплатной квоте Spark (API 26 en/ru/iw, 30, 33 и 35 en, 36 en/ru/iw). API 23 на виртуальных устройствах нет, его покрывает Robolectric. Если Test Lab не стартовал из-за доступа, квоты или инфраструктуры, APK всё равно публикуется, а в заметках будет `Test Lab: not run (reason)`. Упавший прогон блокирует релиз.
 
 Подробности — в [ARCHITECTURE.md](ARCHITECTURE.md).
