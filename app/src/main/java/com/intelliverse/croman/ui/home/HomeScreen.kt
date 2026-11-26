@@ -83,6 +83,7 @@ fun HomeScreen(
             }
             if (demoIds.isNotEmpty()) {
                 item {
+                    Text(stringResource(R.string.demo_badge), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.demo_banner), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = {
                         scope.launch {
