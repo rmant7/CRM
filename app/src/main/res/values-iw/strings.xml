@@ -13,6 +13,14 @@
     <string name="backup_failed">הגיבוי נכשל</string>
     <string name="backup_hint">קובץ zip אחד עם מסד הנתונים והתמונות. אתם בוחרים איפה לשמור.</string>
     <string name="backup_import">ייבוא גיבוי</string>
+    <string name="backup_import_choice">מיזוג מוסיף את הרשומות של אדם אחר לנתונים במכשיר הזה. החלפה מוחקת את כל מה שיש כאן עכשיו.</string>
+    <string name="backup_merge">מיזוג לנתונים הנוכחיים</string>
+    <string name="backup_merge_done">המיזוג הסתיים</string>
+    <string name="backup_merge_summary">נוספו %1$d, עודכנו %2$d. יתרות החבילות נשמרו כפי שהן, והתזכורות נקבעו מחדש.</string>
+    <string name="backup_preview">מה ישתנה</string>
+    <string name="backup_preview_hint">חדש / עודכן / ללא שינוי</string>
+    <string name="backup_preview_line">%1$s: %2$d חדשים, %3$d עודכנו, %4$d ללא שינוי</string>
+    <string name="backup_replace">החלפת כל הנתונים</string>
     <string name="backup_ok">הגיבוי הושלם</string>
     <string name="board_empty">ריק</string>
     <string name="board_view">לוח</string>

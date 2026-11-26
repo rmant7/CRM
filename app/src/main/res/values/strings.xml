@@ -12,6 +12,14 @@
     <string name="backup_failed">Backup failed</string>
     <string name="backup_hint">One zip file with the database and photos. You choose where it is saved.</string>
     <string name="backup_import">Import backup</string>
+    <string name="backup_import_choice">Merge adds the other person’s records to this device. Replace removes everything that is here now.</string>
+    <string name="backup_merge">Merge into current data</string>
+    <string name="backup_merge_done">Merge finished</string>
+    <string name="backup_merge_summary">Added %1$d, updated %2$d. Package balances were kept as stored, and reminders were scheduled again.</string>
+    <string name="backup_preview">What will change</string>
+    <string name="backup_preview_hint">New / updated / unchanged</string>
+    <string name="backup_preview_line">%1$s: %2$d new, %3$d updated, %4$d unchanged</string>
+    <string name="backup_replace">Replace all data</string>
     <string name="backup_ok">Backup finished</string>
     <string name="board_empty">Empty</string>
     <string name="board_view">Board</string>

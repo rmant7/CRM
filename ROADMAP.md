@@ -32,7 +32,7 @@ Manufacturing, wholesale, logistics, HR, and NGOs wait for the server/ERP stage.
 
 ## Infrastructure
 
-Local only, then backup (done in 0.2), then one Android device as a LAN server, then cloud/server versions.
+Local only, then backup (done in 0.2), then merge of two devices' backups (done in 0.3.1, the precursor to sync), then one Android device as a LAN server, then cloud/server versions.
 
 ---
 
@@ -70,4 +70,4 @@ CRoMan — мобильная CRM для независимых специали
 
 ## Инфраструктура
 
-Только локально, затем резервная копия (сделано в 0.2), затем один Android как сервер в локальной сети, затем облачные / серверные версии.
+Только локально, затем резервная копия (сделано в 0.2), затем слияние копий двух устройств (сделано в 0.3.1, подготовка к синхронизации), затем один Android как сервер в локальной сети, затем облачные / серверные версии.

@@ -12,6 +12,14 @@
     <string name="backup_failed">Не удалось сохранить копию</string>
     <string name="backup_hint">Один zip-файл с базой и фотографиями. Место выбираете вы.</string>
     <string name="backup_import">Импорт копии</string>
+    <string name="backup_import_choice">Слияние добавит записи другого человека к данным на этом устройстве. Замена удалит всё, что есть сейчас.</string>
+    <string name="backup_merge">Слить с текущими данными</string>
+    <string name="backup_merge_done">Слияние завершено</string>
+    <string name="backup_merge_summary">Добавлено %1$d, обновлено %2$d. Балансы пакетов сохранены как в записях, напоминания поставлены заново.</string>
+    <string name="backup_preview">Что изменится</string>
+    <string name="backup_preview_hint">Новые / обновлённые / без изменений</string>
+    <string name="backup_preview_line">%1$s: %2$d новых, %3$d обновлено, %4$d без изменений</string>
+    <string name="backup_replace">Заменить все данные</string>
     <string name="backup_ok">Готово</string>
     <string name="board_empty">Пусто</string>
     <string name="board_view">Доска</string>

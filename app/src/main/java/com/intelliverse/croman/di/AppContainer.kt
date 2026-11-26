@@ -6,6 +6,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import com.intelliverse.croman.MainActivity
 import com.intelliverse.croman.data.backup.AndroidDatabaseCheck
 import com.intelliverse.croman.data.backup.BackupArchive
+import com.intelliverse.croman.data.backup.BackupMerger
+import com.intelliverse.croman.data.backup.MergeReport
 import com.intelliverse.croman.data.local.CromanDatabase
 import com.intelliverse.croman.data.photos.PhotoStore
 import com.intelliverse.croman.data.preferences.UserPreferences
@@ -27,6 +29,35 @@ class AppContainer(private val context: Context) {
     fun checkpoint() {
         val db = database.openHelper.writableDatabase
         db.query("PRAGMA wal_checkpoint(FULL)").close()
+    }
+
+    fun previewMerge(archive: File, password: String? = null): MergeReport {
+        val unpacked = unpack(archive, password)
+        return try {
+            BackupMerger.preview(database.openHelper.writableDatabase, unpacked.first)
+        } finally {
+            unpacked.second.deleteRecursively()
+        }
+    }
+
+    fun mergeBackup(archive: File, password: String? = null): MergeReport {
+        val unpacked = unpack(archive, password)
+        return try {
+            BackupMerger.merge(
+                database.openHelper.writableDatabase,
+                unpacked.first,
+                File(unpacked.second, "photos"),
+                photos.directory(),
+            )
+        } finally {
+            unpacked.second.deleteRecursively()
+        }
+    }
+
+    private fun unpack(archive: File, password: String?): Pair<File, File> {
+        val work = File(context.cacheDir, "croman-merge-${System.nanoTime()}").apply { mkdirs() }
+        BackupArchive.unpack(archive, password, work)
+        return File(work, "croman.db") to work
     }
 
     fun importBackup(archive: File, password: String? = null) {

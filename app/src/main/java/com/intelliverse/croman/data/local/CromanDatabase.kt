@@ -418,6 +418,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE deleted_at IS NULL AND completed_at IS NULL AND reminder_at IS NOT NULL")
     suspend fun reminders(): List<TaskEntity>
 
+    @Query("SELECT * FROM tasks WHERE reminder_at IS NOT NULL")
+    suspend fun reminderCandidates(): List<TaskEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: TaskEntity)
 
