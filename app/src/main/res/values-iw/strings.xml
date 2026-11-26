@@ -143,6 +143,7 @@
     <string name="upcoming">משימות קרובות</string>
     <string name="version_label">גרסה %1$s</string>
     <string name="whatsapp">וואטסאפ</string>
+    <string name="exact_alarm_prompt">אפשרו התראות מדויקות כדי שהתזכורת תופיע בזמן.</string>
     <string name="workspaces">סביבות עבודה</string>
     <string name="backup_password">סיסמה (לא חובה)</string>
     <string name="backup_password_confirm">אימות סיסמה</string>

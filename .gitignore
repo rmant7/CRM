@@ -19,6 +19,7 @@ output-metadata.json
 *.jks
 *.keystore
 !debug.keystore
+!signing/croman-test.keystore
 .navigation/
 captures/
 *.hprof

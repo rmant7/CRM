@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for a small business. Version 0.2.1 is aimed at an individual real-estate agent and a tutor, and other professions can be added as workspace templates. There is no account and no network permission.
+Offline CRM for a small business. Version 0.2.2 is aimed at an individual real-estate agent and a tutor, and other professions can be added as workspace templates. There is no account and no network permission.
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -29,9 +29,36 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`
 GitHub Actions builds only on tags `v*.*.*` and on a manual run. It runs `./gradlew test` before the APK and publishes `croman-vX.Y.Z.apk`. Older releases, tags, and Actions artifacts are deleted.
 
 ```bash
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
+
+## Signing
+
+Every release is signed with `signing/croman-test.keystore` (alias `croman`, store password `croman-test`, key password `croman-test`). This is a **test** key committed so CI always produces the same certificate. It is not a Play Store / production key. If the file is missing, the build fails. It does not generate a random debug key.
+
+0.2.0 and 0.2.1 were signed by whatever debug key the GitHub-hosted runner created for that job. v0.2.0's APK was deleted by the keep-latest workflow, so the two certificates cannot be compared anymore. v0.2.1's certificate is the Android debug identity (`CN=Android Debug`) with SHA-256 `c5d2660a52ee5d181095e580dc0185442267299148ed670d2826944692302bb0`. A fresh runner does not reuse that key. **Uninstall 0.2.0 and 0.2.1 once before installing 0.2.2.** Later builds that use this same test key install over 0.2.2.
+
+To switch to a private key stored in GitHub Actions:
+
+1. Create a keystore and do not commit it.
+2. `base64 -w0 your.keystore`
+3. Add repository secrets `CROMAN_KEYSTORE_BASE64`, `CROMAN_STORE_PASSWORD`, `CROMAN_KEY_PASSWORD`, and `CROMAN_KEY_ALIAS`.
+4. The release workflow uses those secrets when all four are set. The first build with a new key will not install over builds signed with the test key.
+
+## Firebase Test Lab
+
+The tag workflow builds instrumented tests, then runs them on Test Lab only when both of these exist:
+
+1. Secret `GCP_SA_KEY`: the JSON key of a service account that can run Firebase Test Lab.
+2. Secret `FIREBASE_PROJECT_ID`, or repository variable `FIREBASE_PROJECT_ID`.
+
+If either is missing, the step logs a skip and the APK is still published. When both are set, the workflow runs:
+
+- instrumented UI tests (realtor home, tutor students) on a virtual Android 14 phone and a virtual Android 9 phone
+- a Robo crawl on Android 14 in English, Russian, and Hebrew (`iw`), plus Android 9 in English
+
+Screenshots and video are in the Test Lab results bucket printed by `gcloud`.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -39,7 +66,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для малого бизнеса. Версия 0.2.1 рассчитана на частного риелтора и репетитора; другие профессии добавляются шаблонами рабочего пространства. Аккаунта нет, разрешения на интернет нет.
+Офлайн-CRM для малого бизнеса. Версия 0.2.2 рассчитана на частного риелтора и репетитора; другие профессии добавляются шаблонами рабочего пространства. Аккаунта нет, разрешения на интернет нет.
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 
@@ -64,8 +91,20 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 Сборка только по тегам `v*.*.*` и вручную. Сначала `./gradlew test`, затем APK `croman-vX.Y.Z.apk`. Старые релизы, теги и артефакты удаляются.
 
 ```bash
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
+
+## Подпись
+
+Релизы подписываются файлом `signing/croman-test.keystore` (alias `croman`, пароли `croman-test`). Это тестовый ключ в репозитории, один и тот же для всех сборок. Для Play Store он не годится. Если файла нет, сборка падает и не создаёт случайный debug-ключ.
+
+0.2.0 и 0.2.1 подписаны ключом, который раннер GitHub сгенерировал для той задачи. **Удалите 0.2.0 и 0.2.1 один раз перед установкой 0.2.2.** Дальше сборки с этим ключом обновляются поверх 0.2.2.
+
+Секреты `CROMAN_KEYSTORE_BASE64`, `CROMAN_STORE_PASSWORD`, `CROMAN_KEY_PASSWORD`, `CROMAN_KEY_ALIAS` переключают CI на свой ключ. Первая сборка с новым ключом не встанет поверх тестовой подписи.
+
+## Firebase Test Lab
+
+Шаг в релизе запускается, только если заданы секрет `GCP_SA_KEY` и секрет или переменная `FIREBASE_PROJECT_ID`. Иначе он пишет, что пропущен, и APK всё равно публикуется. При включении: инструментальные тесты на Android 14 и Android 9 и Robo на Android 14 (en, ru, iw) и Android 9 (en).
 
 Подробности — в [ARCHITECTURE.md](ARCHITECTURE.md).

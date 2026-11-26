@@ -12,10 +12,17 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 class BackupException(message: String) : Exception(message)
+
+internal data class ZipLimits(
+    val maxEntries: Int = 2_000,
+    val maxEntryBytes: Long = 256L * 1024 * 1024,
+    val maxTotalBytes: Long = 512L * 1024 * 1024,
+    val maxRatio: Double = 100.0,
+)
 
 fun interface DatabaseValidator {
     /** Null when the file is acceptable. */
@@ -34,6 +41,7 @@ object BackupArchive {
     const val PHOTO_PREFIX = "photos/"
     const val MAGIC = "CROMANENC1"
     const val KDF_ITERATIONS = 210_000
+    internal var zipLimits = ZipLimits()
     private const val SALT_LEN = 16
     private const val IV_LEN = 12
     private const val KEY_BITS = 256
@@ -160,37 +168,78 @@ object BackupArchive {
         return plain
     }
 
+    internal fun rejectUnsafeZipPath(name: String) {
+        val normalized = name.replace('\\', '/')
+        if (normalized.isBlank() || normalized.startsWith("/") || normalized.split('/').any { it == ".." }) {
+            throw BackupException("unsafe path")
+        }
+    }
+
     private fun extract(plain: File, database: File, photosDir: File) {
         var sawManifest = false
         var sawDb = false
-        ZipInputStream(BufferedInputStream(FileInputStream(plain))).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory) {
-                    when {
-                        entry.name == MANIFEST -> {
-                            val text = zip.readBytes().decodeToString()
+        var total = 0L
+        ZipFile(plain).use { zip ->
+            val entries = zip.entries().toList()
+            if (entries.size > zipLimits.maxEntries) throw BackupException("too many backup entries")
+            entries.forEach { entry ->
+                rejectUnsafeZipPath(entry.name)
+                if (!entry.isDirectory && entry.size >= 0 && entry.size > zipLimits.maxEntryBytes) {
+                    throw BackupException("backup entry too large")
+                }
+                val compressed = entry.compressedSize
+                if (!entry.isDirectory && compressed > 0 && entry.size > 0 && entry.size.toDouble() / compressed > zipLimits.maxRatio) {
+                    throw BackupException("compression ratio")
+                }
+            }
+            entries.forEach { entry ->
+                if (entry.isDirectory) return@forEach
+                total += if (entry.size >= 0) entry.size else 0
+                if (total > zipLimits.maxTotalBytes) throw BackupException("backup too large")
+                zip.getInputStream(entry).use { input ->
+                    when (entry.name) {
+                        MANIFEST -> {
+                            val text = readCapped(input, 64 * 1024)
                             if (!text.contains("\"formatVersion\":$FORMAT_VERSION")) throw BackupException("unsupported backup format")
                             if (!text.contains("\"app\":\"croman\"")) throw BackupException("not a CRoMan backup")
                             sawManifest = true
                         }
-                        entry.name == DATABASE_ENTRY -> {
+                        DATABASE_ENTRY -> {
                             database.parentFile?.mkdirs()
-                            database.outputStream().use { zip.copyTo(it) }
+                            database.outputStream().use { copyCapped(input, it) }
                             sawDb = true
                         }
-                        entry.name.startsWith(PHOTO_PREFIX) -> {
+                        else -> if (entry.name.startsWith(PHOTO_PREFIX)) {
+                            val leaf = entry.name.substringAfterLast('/')
+                            if (leaf.isBlank() || leaf == "." || leaf == "..") throw BackupException("unsafe path")
                             photosDir.mkdirs()
-                            File(photosDir, File(entry.name).name).outputStream().use { zip.copyTo(it) }
+                            File(photosDir, leaf).outputStream().use { copyCapped(input, it) }
                         }
                     }
                 }
-                zip.closeEntry()
-                entry = zip.nextEntry
             }
         }
         if (!sawManifest) throw BackupException("backup manifest missing")
         if (!sawDb) throw BackupException("backup database missing")
+    }
+
+    private fun readCapped(input: java.io.InputStream, cap: Int): String {
+        val out = java.io.ByteArrayOutputStream()
+        copyCapped(input, out, cap.toLong())
+        return out.toString(Charsets.UTF_8)
+    }
+
+    private fun copyCapped(input: java.io.InputStream, output: java.io.OutputStream, cap: Long = zipLimits.maxEntryBytes): Long {
+        val buf = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > cap || total > zipLimits.maxTotalBytes) throw BackupException("backup too large")
+            output.write(buf, 0, n)
+        }
+        return total
     }
 
     private fun structuralCheck(database: File) {
@@ -207,28 +256,68 @@ object BackupArchive {
         SecureRandom().nextBytes(iv)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key(password, salt), GCMParameterSpec(GCM_TAG_BITS, iv))
-        val encrypted = cipher.doFinal(plain.readBytes())
         FileOutputStream(destination).use { out ->
             out.write(MAGIC.toByteArray(Charsets.US_ASCII))
             out.write(salt)
             out.write(iv)
             out.write(intBytes(KDF_ITERATIONS))
-            out.write(encrypted)
+            FileInputStream(plain).use { input ->
+                val buf = ByteArray(64 * 1024)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    val part = cipher.update(buf, 0, n)
+                    if (part != null && part.isNotEmpty()) out.write(part)
+                }
+            }
+            out.write(cipher.doFinal())
         }
     }
 
     private fun decrypt(source: File, destination: File, password: String) {
-        val all = source.readBytes()
-        val magicLen = MAGIC.length
-        if (all.size < magicLen + SALT_LEN + IV_LEN + 4 + 16) throw BackupException("truncated backup")
-        val salt = all.copyOfRange(magicLen, magicLen + SALT_LEN)
-        val iv = all.copyOfRange(magicLen + SALT_LEN, magicLen + SALT_LEN + IV_LEN)
-        val iterations = intFrom(all, magicLen + SALT_LEN + IV_LEN)
-        if (iterations < 100_000 || iterations > 5_000_000) throw BackupException("bad kdf")
-        val body = all.copyOfRange(magicLen + SALT_LEN + IV_LEN + 4, all.size)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, key(password, salt, iterations), GCMParameterSpec(GCM_TAG_BITS, iv))
-        destination.writeBytes(cipher.doFinal(body))
+        val header = MAGIC.length + SALT_LEN + IV_LEN + 4
+        val tagLen = GCM_TAG_BITS / 8
+        if (source.length() < header + tagLen) throw BackupException("truncated backup")
+        FileInputStream(source).use { input ->
+            val magic = ByteArray(MAGIC.length)
+            readFully(input, magic)
+            if (String(magic, Charsets.US_ASCII) != MAGIC) throw BackupException("not encrypted")
+            val salt = ByteArray(SALT_LEN)
+            val iv = ByteArray(IV_LEN)
+            val iterBytes = ByteArray(4)
+            readFully(input, salt)
+            readFully(input, iv)
+            readFully(input, iterBytes)
+            val iterations = intFrom(iterBytes, 0)
+            if (iterations < 100_000 || iterations > 5_000_000) throw BackupException("bad kdf")
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(password, salt, iterations), GCMParameterSpec(GCM_TAG_BITS, iv))
+            val ciphertext = source.length() - header - tagLen
+            FileOutputStream(destination).use { out ->
+                val buf = ByteArray(64 * 1024)
+                var remaining = ciphertext
+                while (remaining > 0) {
+                    val n = input.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+                    if (n < 0) throw BackupException("truncated backup")
+                    val part = cipher.update(buf, 0, n)
+                    if (part != null && part.isNotEmpty()) out.write(part)
+                    remaining -= n
+                }
+                val tag = ByteArray(tagLen)
+                readFully(input, tag)
+                val tail = cipher.doFinal(tag)
+                if (tail != null && tail.isNotEmpty()) out.write(tail)
+            }
+        }
+    }
+
+    private fun readFully(input: java.io.InputStream, dest: ByteArray) {
+        var offset = 0
+        while (offset < dest.size) {
+            val n = input.read(dest, offset, dest.size - offset)
+            if (n < 0) throw BackupException("truncated backup")
+            offset += n
+        }
     }
 
     private fun key(password: String, salt: ByteArray, iterations: Int = KDF_ITERATIONS): SecretKeySpec {

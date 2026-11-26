@@ -142,6 +142,7 @@
     <string name="upcoming">Coming up</string>
     <string name="version_label">Version %1$s</string>
     <string name="whatsapp">WhatsApp</string>
+    <string name="exact_alarm_prompt">Allow exact alarms so a reminder fires on time.</string>
     <string name="workspaces">Workspaces</string>
     <string name="backup_password">Password (optional)</string>
     <string name="backup_password_confirm">Confirm password</string>

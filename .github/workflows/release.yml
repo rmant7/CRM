@@ -48,17 +48,74 @@ jobs:
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Select signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.CROMAN_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.CROMAN_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.CROMAN_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CROMAN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYSTORE_B64}" ] && [ -n "${STORE_PASSWORD}" ] && [ -n "${KEY_PASSWORD}" ] && [ -n "${KEY_ALIAS}" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/croman-release.keystore"
+            echo "CROMAN_KEYSTORE=$RUNNER_TEMP/croman-release.keystore" >> "$GITHUB_ENV"
+            echo "CROMAN_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "CROMAN_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "CROMAN_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          else
+            test -f signing/croman-test.keystore
+            echo "Using the committed test keystore. No secret keystore is configured."
+          fi
+
       - name: Test
         run: |
           set -euo pipefail
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           ./gradlew test --stacktrace --no-daemon
 
-      - name: Build debug APK
+      - name: Build debug APK and instrumented tests
         run: |
           set -euo pipefail
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace --no-daemon
+
+      - name: Firebase Test Lab
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PROJECT_ID_VAR: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          PROJECT="${FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID_VAR:-}}"
+          if [ -z "${GCP_SA_KEY}" ] || [ -z "$PROJECT" ]; then
+            echo "Firebase Test Lab skipped: set secret GCP_SA_KEY and secret or variable FIREBASE_PROJECT_ID to enable."
+            exit 0
+          fi
+          echo "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-sa.json"
+          if ! command -v gcloud >/dev/null 2>&1; then
+            curl -fsSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz | tar -xz -C "$RUNNER_TEMP"
+            export PATH="$RUNNER_TEMP/google-cloud-sdk/bin:$PATH"
+          fi
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-sa.json"
+          gcloud config set project "$PROJECT"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          TEST_APK="app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app "$APK" \
+            --test "$TEST_APK" \
+            --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
+            --device model=MediumPhone.arm,version=28,locale=en,orientation=portrait \
+            --timeout 20m
+          gcloud firebase test android run \
+            --type robo \
+            --app "$APK" \
+            --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
+            --device model=MediumPhone.arm,version=34,locale=ru,orientation=portrait \
+            --device model=MediumPhone.arm,version=34,locale=iw,orientation=portrait \
+            --device model=MediumPhone.arm,version=28,locale=en,orientation=portrait \
+            --timeout 20m
+          rm -f "$RUNNER_TEMP/gcp-sa.json"
 
       - name: Prepare release asset
         id: apk
@@ -82,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES=$(cat <<EOF
-          CRoMan ${RELEASE_TAG} — offline CRM for small businesses and real-estate agents. Same application id as CRoMan 0.2, so this build updates that install. Mantel CRM 0.1 stays a separate app.
+          CRoMan ${RELEASE_TAG} — offline CRM. Signed with a stable test key. This build does not install over 0.2.0 or 0.2.1; uninstall those once. Later builds that use the same key update in place. Mantel CRM 0.1 stays a separate app.
 
           The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
 
@@ -92,7 +149,7 @@ jobs:
 
           ---
 
-          CRoMan ${RELEASE_TAG} — офлайн CRM для малого бизнеса и риелторов. Тот же application id, что у CRoMan 0.2, поэтому эта сборка обновляет её. Версия 0.1 остаётся отдельным приложением.
+          CRoMan ${RELEASE_TAG} — офлайн CRM. Подпись стабильным тестовым ключом. Эта сборка не ставится поверх 0.2.0 и 0.2.1: их нужно удалить один раз. Следующие сборки с тем же ключом обновляются на месте. Версия 0.1 остаётся отдельным приложением.
 
           APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
 

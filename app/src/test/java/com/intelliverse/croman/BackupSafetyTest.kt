@@ -4,6 +4,7 @@ import com.intelliverse.croman.data.backup.BackupArchive
 import com.intelliverse.croman.data.backup.BackupException
 import com.intelliverse.croman.data.backup.BackupTransfer
 import com.intelliverse.croman.data.backup.DatabaseValidator
+import com.intelliverse.croman.data.backup.ZipLimits
 import java.io.File
 import java.io.FileOutputStream
 import java.sql.DriverManager
@@ -97,6 +98,73 @@ class BackupSafetyTest {
         }
         assertTrue(error.message.orEmpty().isNotBlank())
         assertArrayEquals(before, live.readBytes())
+    }
+
+    @Test
+    fun streamedDecryptRoundTripsAMultiMegabyteBackup() {
+        val root = folder("stream")
+        val db = File(root, "live.db")
+        val payload = ByteArray(2 * 1024 * 1024)
+        java.util.Random(7).nextBytes(payload)
+        payload[0] = 'S'.code.toByte()
+        db.writeBytes("SQLite format 3".toByteArray() + payload)
+        val archive = File(root, "big.croman")
+        BackupArchive.export(archive, db, File(root, "photos").apply { mkdirs() }, 1L, "stream-pass")
+        val restored = File(root, "restored.db")
+        BackupArchive.restore(archive, restored, File(root, "out-photos"), "stream-pass")
+        assertArrayEquals(db.readBytes(), restored.readBytes())
+    }
+
+    @Test
+    fun zipBombTraversalAndRatioAreRejected() {
+        val root = folder("bomb")
+        val live = sqlite(File(root, "live.db"), "hash-live")
+        val before = live.readBytes()
+        val photos = File(root, "photos").apply { mkdirs() }
+        val previous = BackupArchive.zipLimits
+        try {
+            BackupArchive.zipLimits = ZipLimits(maxEntries = 1, maxEntryBytes = 50, maxTotalBytes = 50, maxRatio = 100.0)
+            val archive = File(root, "normal.zip")
+            BackupArchive.export(archive, live, File(root, "empty").apply { mkdirs() }, 1L)
+            assertThrows(BackupException::class.java) {
+                BackupArchive.restore(archive, live, photos, null, "hash-live", JdbcCheck)
+            }
+            assertArrayEquals(before, live.readBytes())
+            val slip = File(root, "slip.zip")
+            java.util.zip.ZipOutputStream(slip.outputStream()).use { zip ->
+                zip.putNextEntry(java.util.zip.ZipEntry("photos/../../evil.txt"))
+                zip.write(byteArrayOf(1))
+                zip.closeEntry()
+            }
+            val slipError = assertThrows(BackupException::class.java) {
+                BackupArchive.restore(slip, live, photos, null, "hash-live", JdbcCheck)
+            }
+            assertTrue(slipError.message.orEmpty().contains("unsafe"))
+            assertArrayEquals(before, live.readBytes())
+            assertFalse(File(root, "evil.txt").exists())
+        } finally {
+            BackupArchive.zipLimits = previous
+        }
+        val previousRatio = BackupArchive.zipLimits
+        try {
+            BackupArchive.zipLimits = ZipLimits(maxEntries = 10, maxEntryBytes = 5_000_000, maxTotalBytes = 5_000_000, maxRatio = 3.0)
+            val bomb = File(root, "ratio.zip")
+            java.util.zip.ZipOutputStream(bomb.outputStream()).use { zip ->
+                zip.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+                zip.write("""{"formatVersion":1,"app":"croman","createdAt":1}""".toByteArray())
+                zip.closeEntry()
+                zip.putNextEntry(java.util.zip.ZipEntry("database/croman.db"))
+                zip.write(ByteArray(200_000))
+                zip.closeEntry()
+            }
+            val ratio = assertThrows(BackupException::class.java) {
+                BackupArchive.restore(bomb, live, photos, null, "hash-live", JdbcCheck)
+            }
+            assertTrue(ratio.message.orEmpty().contains("ratio"))
+            assertArrayEquals(before, live.readBytes())
+        } finally {
+            BackupArchive.zipLimits = previousRatio
+        }
     }
 
     @Test

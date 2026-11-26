@@ -65,6 +65,12 @@ class CromanStore(
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
+    /** Test hook. When set to a point name, the matching write throws and the transaction rolls back. */
+    var faultAt: String? = null
+
+    private fun fault(point: String) {
+        if (faultAt == point) throw IllegalStateException("injected failure at $point")
+    }
     private val json = Json { ignoreUnknownKeys = true }
 
     fun observeWorkspaces(): Flow<List<Workspace>> =
@@ -74,6 +80,7 @@ class CromanStore(
         val now = clock()
         val id = Ids.new()
         val db = database()
+        db.withTransaction {
         db.workspaces().upsert(
             WorkspaceEntity(
                 id = id,
@@ -84,6 +91,7 @@ class CromanStore(
                 country = template.country,
             ),
         )
+        fault("workspace-row")
         db.config().upsertView(
             ViewConfigEntity(
                 id = Ids.new(),
@@ -151,6 +159,7 @@ class CromanStore(
             }
         }
         audit(id, "workspaces", id, "upsert")
+        }
         return id
     }
 
@@ -163,7 +172,7 @@ class CromanStore(
         steps.forEach { step ->
             step.renames.forEach { rename ->
                 database().config().renameField(workspaceId, rename.type, rename.from, rename.to, now)
-                database().config().renameValues(workspaceId, rename.from, rename.to, now)
+                database().config().renameValuesForType(workspaceId, rename.type, rename.from, rename.to, now)
             }
             step.splits.forEach { split ->
                 val ids = database().entities().idsOf(workspaceId, split.type)
@@ -320,6 +329,7 @@ class CromanStore(
         })
         val badgeKey = type.listBadge
         val moneyKey = type.listMoney
+        database().withTransaction {
         database().entities().upsert(
             EntityRecord(
                 id = id,
@@ -335,6 +345,7 @@ class CromanStore(
                 moneyCurrency = fields["currency"].orEmpty().ifBlank { "ILS" },
             ),
         )
+        fault("entity-row")
         type.fields.forEach { field ->
             val raw = fields[field.key].orEmpty()
             database().entities().upsertValue(
@@ -371,6 +382,7 @@ class CromanStore(
         }
         applyLessonRules(workspaceId, id, type, title, stageKey, fields, relations, existing == null, created, now)
         audit(workspaceId, "entities", id, "upsert")
+        }
     }
 
     private suspend fun applyLessonRules(
@@ -477,6 +489,7 @@ class CromanStore(
         val now = clock()
         val created = existing?.sync?.createdAt ?: now
         val stored = task.copy(createdAt = created, updatedAt = now, deletedAt = null)
+        database().withTransaction {
         database().tasks().upsert(
             TaskEntity(
                 id = stored.id,
@@ -490,9 +503,11 @@ class CromanStore(
                 entityId = stored.entityId,
             ),
         )
+        fault("task-row")
         syncCalendar(stored, created, now)
-        schedule(stored)
         audit(stored.workspaceId, "tasks", stored.id, "upsert")
+        }
+        schedule(stored)
     }
 
     private suspend fun syncCalendar(task: TaskItem, created: Long, now: Long) {
@@ -523,10 +538,12 @@ class CromanStore(
     suspend fun softDeleteTask(id: String, cancel: (String) -> Unit) {
         val existing = database().tasks().get(id) ?: return
         val now = clock()
-        database().tasks().softDelete(id, now)
-        database().misc().softDeleteEvent("cal-$id", now)
+        database().withTransaction {
+            database().tasks().softDelete(id, now)
+            database().misc().softDeleteEvent("cal-$id", now)
+            audit(existing.sync.workspaceId, "tasks", id, "delete")
+        }
         cancel(id)
-        audit(existing.sync.workspaceId, "tasks", id, "delete")
     }
 
     suspend fun contactExtras(contactId: String): Map<String, String> = entityFields(contactId)

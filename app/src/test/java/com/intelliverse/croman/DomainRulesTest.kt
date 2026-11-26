@@ -1,5 +1,7 @@
 package com.intelliverse.croman
 
+import com.intelliverse.croman.data.photos.sampleSizeFor
+import com.intelliverse.croman.data.reminder.AlarmPolicy
 import com.intelliverse.croman.domain.LessonSeries
 import com.intelliverse.croman.domain.MigrationDef
 import com.intelliverse.croman.domain.NavLabels
@@ -106,6 +108,33 @@ class DomainRulesTest {
                 assertFalse(item.label.he == "תלמידי")
             }
         }
+    }
+
+    @Test
+    fun photosAreSubsampledAndAlarmsStayExactOnlyWhenAllowed() {
+        assertEquals(1, sampleSizeFor(1600, 900, 1600))
+        assertEquals(4, sampleSizeFor(12_000, 8_000, 1600))
+        assertEquals(AlarmPolicy.EXACT, AlarmPolicy.choose(30, false))
+        assertEquals(AlarmPolicy.EXACT, AlarmPolicy.choose(34, true))
+        assertEquals(AlarmPolicy.WHILE_IDLE, AlarmPolicy.choose(34, false))
+    }
+
+    @Test
+    fun signingConfigRefusesARandomDebugKey() {
+        val gradle = listOf(File("app/build.gradle.kts"), File("build.gradle.kts")).first { it.isFile && it.readText().contains("croman-test.keystore") }
+        val text = gradle.readText()
+        assertTrue(text.contains("signingConfigs.getByName(\"stable\")"))
+        assertTrue(text.contains("validateSigningCroman"))
+        assertTrue(text.contains("Refusing to fall back"))
+        assertFalse(text.contains("debug.keystore"))
+        val keystore = listOf(File("signing/croman-test.keystore"), File("../signing/croman-test.keystore")).first { it.isFile }
+        val header = keystore.inputStream().use { it.readNBytes(4) }
+        assertEquals(0x30, header[0].toInt() and 0xff)
+        val manifest = listOf(File("app/src/main/AndroidManifest.xml"), File("src/main/AndroidManifest.xml")).first { it.isFile }.readText()
+        assertTrue(manifest.contains("SCHEDULE_EXACT_ALARM"))
+        assertTrue(manifest.contains("MY_PACKAGE_REPLACED"))
+        assertTrue(manifest.contains("POST_NOTIFICATIONS"))
+        assertTrue(manifest.contains("BOOT_COMPLETED"))
     }
 
     @Test
