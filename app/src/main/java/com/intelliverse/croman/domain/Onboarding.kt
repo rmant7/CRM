@@ -73,8 +73,16 @@ object Onboarding {
         }
     }
 
+    val primaryIds = listOf("realtor", "tutor")
+
     fun offers(readyTemplateIds: Set<String>): List<OnboardingOffer> =
         catalog.filter { it.templateId in readyTemplateIds }
+
+    fun primary(offers: List<OnboardingOffer>): List<OnboardingOffer> =
+        offers.filter { it.templateId in primaryIds }
+
+    fun moreFields(offers: List<OnboardingOffer>): List<OnboardingOffer> =
+        offers.filter { it.templateId !in primaryIds }
 
     fun match(description: String, offers: List<OnboardingOffer>): OnboardingMatch {
         require(offers.isNotEmpty())
@@ -106,4 +114,12 @@ object Onboarding {
         "professional" -> L10n("Clients and projects.", "Клиенты и проекты.", "לקוחות ופרויקטים.")
         else -> L10n("People and the work you do with them.", "Люди и работа с ними.", "אנשים והעבודה איתם.")
     }
+}
+
+enum class HomePrompt { EMPTY, DEMO_ONLY, HAS_REAL }
+
+fun homePrompt(realClients: Int, demoPresent: Boolean): HomePrompt = when {
+    realClients > 0 -> HomePrompt.HAS_REAL
+    demoPresent -> HomePrompt.DEMO_ONLY
+    else -> HomePrompt.EMPTY
 }

@@ -12,10 +12,12 @@ import com.intelliverse.croman.data.template.TemplateCatalog
 import com.intelliverse.croman.domain.Contact
 import com.intelliverse.croman.domain.ContactKind
 import java.io.File
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -36,6 +38,8 @@ class DemoDataTest {
         val realId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
         store.saveContact(Contact(realId, workspace, "Real Maya", "555", "", "", ContactKind.BUYER, "", "", 1, 1))
         val demo = DemoSamples.load(store, workspace, template)
+        val summary = store.observeHome(workspace, template).first { it.stages.sumOf { stage -> stage.count } > 0 }
+        assertTrue(summary.stages.count { it.count > 0 } >= 2)
         assertEquals(1, store.getContact(realId)?.let { 1 } ?: 0)
         store.eraseOwned(demo)
         assertNotNull(store.getContact(realId))

@@ -157,6 +157,10 @@
     <string name="onboard_welcome">Добро пожаловать. Всё остаётся на этом телефоне.</string>
     <string name="onboard_question">Чем вы занимаетесь?</string>
     <string name="onboard_other">Другое</string>
+    <string name="onboard_more">Ещё направления</string>
+    <string name="add_own_client">Добавить своего клиента</string>
+    <string name="add_client">Добавить клиента</string>
+    <string name="demo_numbers">Это цифры из демо.</string>
     <string name="onboard_describe">Опишите коротко</string>
     <string name="onboard_match">Подобрать</string>
     <string name="onboard_notice">Отдельного шаблона для этого пока нет. Это ближайшая рабочая настройка, её можно сменить позже в настройках.</string>

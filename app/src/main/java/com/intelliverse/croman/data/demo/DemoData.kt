@@ -40,22 +40,21 @@ object DemoSamples {
             ),
         )
         val ids = mutableSetOf(contactId)
-        val type = template.entityTypes.firstOrNull()
-        if (type != null) {
-            val entityId = Ids.new()
-            val fields = type.fields.associate { field ->
-                field.key to when (field.type) {
-                    "number" -> "1"
-                    "money" -> "100"
-                    "date" -> (System.currentTimeMillis() + 86_400_000L).toString()
-                    "select" -> field.options.firstOrNull()?.value.orEmpty()
-                    else -> person.detail
-                }
+        val property = template.entityTypes.firstOrNull { it.key == "property" }
+        if (property != null) {
+            ids += addEntity(store, workspaceId, property, person.work, null, contactId, mapOf("status" to "active"))
+        }
+        val piped = template.entityTypes.firstOrNull { it.pipeline != null }
+        val openStages = piped?.pipeline?.stages?.filter { it.isOpen() }.orEmpty().take(3)
+        if (piped != null && openStages.isNotEmpty()) {
+            openStages.forEach { stage ->
+                ids += addEntity(store, workspaceId, piped, "${person.work} · ${stage.key}", stage.key, contactId, emptyMap())
             }
-            val stage = type.pipeline?.stages?.firstOrNull()?.key
-            val relations = type.relations.filter { it.target == "contact" }.associate { it.key to contactId }
-            store.saveEntity(workspaceId, entityId, type, person.work, stage, fields, relations)
-            ids += entityId
+        } else {
+            val type = template.entityTypes.firstOrNull { it.key != "property" } ?: template.entityTypes.firstOrNull()
+            if (type != null) {
+                ids += addEntity(store, workspaceId, type, person.work, type.pipeline?.stages?.firstOrNull()?.key, contactId, emptyMap())
+            }
         }
         val taskId = Ids.new()
         store.saveTask(
@@ -75,6 +74,30 @@ object DemoSamples {
         ) { }
         ids += taskId
         return ids
+    }
+
+    private suspend fun addEntity(
+        store: CromanStore,
+        workspaceId: String,
+        type: com.intelliverse.croman.domain.EntityTypeDef,
+        title: String,
+        stage: String?,
+        contactId: String,
+        overrides: Map<String, String>,
+    ): String {
+        val id = Ids.new()
+        val fields = type.fields.associate { field ->
+            field.key to (overrides[field.key] ?: when (field.type) {
+                "number" -> "1"
+                "money" -> "100"
+                "date" -> (System.currentTimeMillis() + 86_400_000L).toString()
+                "select" -> field.options.firstOrNull()?.value.orEmpty()
+                else -> title
+            })
+        }
+        val relations = type.relations.filter { it.target == "contact" }.associate { it.key to contactId }
+        store.saveEntity(workspaceId, id, type, title, stage, fields, relations)
+        return id
     }
 
     private data class Person(val name: String, val phone: String, val detail: String, val work: String, val task: String)

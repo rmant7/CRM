@@ -1,5 +1,15 @@
 package com.intelliverse.croman
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.semantics.SemanticsActions
@@ -7,14 +17,16 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import com.intelliverse.croman.domain.HomePrompt
 import com.intelliverse.croman.domain.L10n
 import com.intelliverse.croman.domain.Onboarding
 import com.intelliverse.croman.domain.OnboardingOffer
 import com.intelliverse.croman.domain.TemplateFile
+import com.intelliverse.croman.domain.homePrompt
 import com.intelliverse.croman.ui.OnboardingChoices
 import com.intelliverse.croman.ui.home.EmptyDesk
+import com.intelliverse.croman.ui.home.HomeCallToAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -97,7 +109,7 @@ class OnboardingScreenTest {
         compose.onNodeWithText("Something else").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("уроки")
         compose.waitForIdle()
-        compose.onNodeWithText("Find a setup").performScrollTo().performClick()
+        compose.onNodeWithText("Find a setup").performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
         assertTrue(compose.onAllNodesWithText("I give lessons").fetchSemanticsNodes().size >= 2)
         assertTrue(compose.onAllNodesWithText("no dedicated template", substring = true).fetchSemanticsNodes().isNotEmpty())
@@ -111,5 +123,66 @@ class OnboardingScreenTest {
         compose.waitForIdle()
         assertTrue(added)
         compose.onNodeWithText("See an example").assertExists()
+    }
+
+    @Test
+    @Config(sdk = [23], qualifiers = "w360dp-h640dp")
+    fun collapsedScreenShowsTwoTilesAndOtherWithoutScrolling() {
+        val offers = Onboarding.offers(setOf("realtor", "tutor", "beauty", "repair", "tourism"))
+        compose.setContent {
+            Box(Modifier.fillMaxSize()) {
+                OnboardingChoices(offers, onPick = {}, onDescribe = { Onboarding.match(it, offers) })
+            }
+        }
+        compose.onNodeWithText("I sell and rent property").assertIsDisplayed()
+        compose.onNodeWithText("I give lessons").assertIsDisplayed()
+        compose.onNodeWithText("More fields").assertIsDisplayed()
+        compose.onNodeWithText("Something else").assertIsDisplayed()
+        compose.onNodeWithText("I repair homes").assertDoesNotExist()
+        compose.onNodeWithText("More fields").performClick()
+        compose.onNodeWithText("I repair homes").assertExists()
+        compose.onNodeWithText("I do beauty treatments").assertExists()
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+class HomePromptTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    @Config(sdk = [28], qualifiers = "en")
+    fun demoOnlyUsesOwnClientAndARealClientChangesTheButton() {
+        compose.setContent {
+            var real by remember { mutableIntStateOf(0) }
+            HomeCallToAction(homePrompt(real, demoPresent = true)) { real += 1 }
+        }
+        compose.onNodeWithText("Add your own client").assertIsDisplayed()
+        compose.onNodeWithText("Add your first client").assertDoesNotExist()
+        compose.onNodeWithText("Add your own client").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        compose.onNodeWithText("Add client").assertIsDisplayed()
+        compose.onNodeWithText("Add your own client").assertDoesNotExist()
+        assertEquals(HomePrompt.HAS_REAL, homePrompt(1, true))
+    }
+
+    @Test
+    @Config(sdk = [28], qualifiers = "ru")
+    fun russianDemoButton() {
+        compose.setContent { HomeCallToAction(HomePrompt.DEMO_ONLY) {} }
+        compose.onNodeWithText("Добавить своего клиента").assertIsDisplayed()
+        compose.onNodeWithText("Добавить первого клиента").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(sdk = [28], qualifiers = "iw-ldrtl")
+    fun hebrewDemoButtonIsRightToLeft() {
+        compose.setContent {
+            CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                HomeCallToAction(HomePrompt.DEMO_ONLY) {}
+            }
+        }
+        compose.onNodeWithText("הוספת הלקוח שלך").assertIsDisplayed()
+        compose.onNodeWithText("הוספת הלקוח הראשון").assertDoesNotExist()
     }
 }

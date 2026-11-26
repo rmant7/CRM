@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -36,9 +35,14 @@ class WorkspaceFlowTest {
     @Test
     fun test01_pickerCreatesARealEstateWorkspace() {
         val phrase = Onboarding.offers(setOf("realtor")).single().phrase
+        val other = rule.activity.getString(R.string.onboard_other)
+        val more = rule.activity.getString(R.string.onboard_more)
         rule.waitUntil(30_000) { visible(phrase).isNotEmpty() }
+        rule.onNodeWithText(other).assertIsDisplayed()
         DeviceShots.save("${localeArg()}-onboarding")
-        rule.onNodeWithText(visible(phrase)).performScrollTo().performClick()
+        rule.onNodeWithText(more).performClick()
+        DeviceShots.save("${localeArg()}-onboarding-more")
+        rule.onNodeWithText(visible(phrase)).performClick()
         val greeting = rule.activity.getString(R.string.greeting)
         val addFirst = rule.activity.getString(R.string.add_first_client)
         rule.waitUntil(30_000) {
@@ -55,7 +59,11 @@ class WorkspaceFlowTest {
             app.container.settings.rememberDemo(workspaceId, created)
         }
         val badge = rule.activity.getString(R.string.demo_badge)
-        rule.waitUntil(60_000) { rule.onAllNodesWithText(badge).fetchSemanticsNodes().isNotEmpty() }
+        val own = rule.activity.getString(R.string.add_own_client)
+        rule.waitUntil(60_000) {
+            rule.onAllNodesWithText(badge).fetchSemanticsNodes().isNotEmpty() &&
+                rule.onAllNodesWithText(own).fetchSemanticsNodes().isNotEmpty()
+        }
         DeviceShots.save("${localeArg()}-demo")
         assertDirection()
     }
