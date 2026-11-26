@@ -1,0 +1,26 @@
+{
+  "id": "process_field",
+  "version": 1,
+  "process": "field_service",
+  "name": {"en": "Field requests", "ru": "Заявки", "he": "קריאות שטח"},
+  "country": "*",
+  "dashboard": "generic",
+  "menu": [
+    {"route": "entities:request", "label": {"en": "Requests", "ru": "Заявки", "he": "קריאות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "request",
+      "label": {"en": "Request", "ru": "Заявка", "he": "קריאה"},
+      "hasPhotos": true,
+      "listBadge": "status",
+      "fields": [
+        {"key": "address", "label": {"en": "Address", "ru": "Адрес", "he": "כתובת"}, "type": "text"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "text"},
+        {"key": "estimate", "label": {"en": "Estimate", "ru": "Смета", "he": "הצעת מחיר"}, "type": "money"},
+        {"key": "materials", "label": {"en": "Materials", "ru": "Материалы", "he": "חומרים"}, "type": "text"},
+        {"key": "warranty_end", "label": {"en": "Warranty end", "ru": "Конец гарантии", "he": "סוף אחריות"}, "type": "date"}
+      ]
+    }
+  ]
+}

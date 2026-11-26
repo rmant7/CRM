@@ -1,0 +1,51 @@
+{
+  "id": "car",
+  "version": 1,
+  "category": "car",
+  "process": "field_service",
+  "name": {"en": "Car service", "ru": "Автосервис", "he": "מוסך"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Customers", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No customers yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a customer and the car.", "ru": "Добавьте клиента и автомобиль.", "he": "הוסיפו לקוח ואת הרכב."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "car", "label": {"en": "Car", "ru": "Автомобиль", "he": "רכב"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Customers", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:request", "label": {"en": "Jobs", "ru": "Заказы", "he": "עבודות"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "request",
+      "label": {"en": "Job", "ru": "Заказ", "he": "עבודה"},
+      "hasPhotos": true,
+      "listBadge": "status",
+      "listMoney": "estimate",
+      "relations": [
+        {"key": "client", "label": {"en": "Customer", "ru": "Клиент", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "address", "label": {"en": "Address", "ru": "Адрес", "he": "כתובת"}, "type": "text"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "new", "label": {"en": "New", "ru": "Новый", "he": "חדש"}},
+          {"value": "estimated", "label": {"en": "Estimated", "ru": "Смета", "he": "הצעה"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Готово", "he": "בוצע"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменён", "he": "בוטל"}}
+        ]},
+        {"key": "estimate", "label": {"en": "Estimate", "ru": "Смета", "he": "הצעת מחיר"}, "type": "money"},
+        {"key": "materials", "label": {"en": "Parts and materials", "ru": "Запчасти и материалы", "he": "חלקים וחומרים"}, "type": "text"},
+        {"key": "warranty_end", "label": {"en": "Warranty end", "ru": "Конец гарантии", "he": "סוף אחריות"}, "type": "date"}
+      ]
+    }
+  ]
+}

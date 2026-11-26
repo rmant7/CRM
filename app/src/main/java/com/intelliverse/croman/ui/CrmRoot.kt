@@ -83,13 +83,18 @@ fun CromanRoot(initialTaskId: String?) {
     val context = LocalContext.current
     val languageTag by container.settings.languageTag.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
     val workspaceId by container.settings.workspaceId.collectAsStateWithLifecycle(initialValue = "")
-    val workspaces by container.store.observeWorkspaces().collectAsStateWithLifecycle(initialValue = emptyList())
+    val workspaces by container.store.observeWorkspaces().collectAsStateWithLifecycle(initialValue = null)
     val language = if (languageTag == AppLanguage.SYSTEM) Locale.getDefault().language else languageTag
-    val workspace = workspaces.firstOrNull { it.id == workspaceId } ?: workspaces.firstOrNull()
-    val template = workspace?.let { runCatching { TemplateCatalog.load(context, it.templateId) }.getOrNull() }
+    val known = workspaces
+    val workspace = known?.firstOrNull { it.id == workspaceId } ?: known?.firstOrNull()
+    val template = workspace?.let { runCatching { TemplateCatalog.effective(context, it) }.getOrNull() }
     CompositionLocalProvider(LocalLanguage provides AppLanguage.normalize(language).let { if (it == AppLanguage.SYSTEM) "en" else it }) {
-        if (workspace == null || template == null) {
+        if (known == null) {
             LoadingBox()
+            return@CompositionLocalProvider
+        }
+        if (workspace == null || template == null) {
+            CategoryPicker()
             return@CompositionLocalProvider
         }
         val nav = rememberNavController()

@@ -1,0 +1,51 @@
+{
+  "id": "professional",
+  "version": 1,
+  "category": "professional",
+  "process": "project_order",
+  "name": {"en": "Professional services", "ru": "Профессиональные услуги", "he": "שירותים מקצועיים"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No clients yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a client for an order.", "ru": "Добавьте клиента заказа.", "he": "הוסיפו לקוח להזמנה."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "email", "label": {"en": "Email", "ru": "Эл. почта", "he": "אימייל"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:project", "label": {"en": "Orders", "ru": "Заказы", "he": "הזמנות"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "project",
+      "label": {"en": "Order", "ru": "Заказ", "he": "הזמנה"},
+      "hasPhotos": true,
+      "listMoney": "prepayment",
+      "pipeline": {"key": "order", "stages": [
+        {"key": "lead", "label": {"en": "Lead", "ru": "Лид", "he": "ליד"}},
+        {"key": "active", "label": {"en": "Active", "ru": "В работе", "he": "בעבודה"}},
+        {"key": "delivered", "label": {"en": "Delivered", "ru": "Сдано", "he": "נמסר"}, "won": true}
+      ]},
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "deadline", "label": {"en": "Deadline", "ru": "Срок", "he": "יעד"}, "type": "date"},
+        {"key": "prepayment", "label": {"en": "Prepayment", "ru": "Предоплата", "he": "מקדמה"}, "type": "money"},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачено", "he": "לא שולם"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачено", "he": "שולם"}}
+        ]}
+      ]
+    }
+  ]
+}

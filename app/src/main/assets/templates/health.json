@@ -1,0 +1,73 @@
+{
+  "id": "health",
+  "version": 1,
+  "category": "health",
+  "process": "appointment",
+  "name": {"en": "Private practice", "ru": "Частная практика", "he": "קליניקה פרטית"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Patients", "ru": "Пациенты", "he": "מטופלים"},
+    "emptyTitle": {"en": "No patients yet", "ru": "Пациентов пока нет", "he": "עדיין אין מטופלים"},
+    "emptyBody": {"en": "Add a patient. Notes on a visit stay on this device.", "ru": "Добавьте пациента. Заметки визита остаются на устройстве.", "he": "הוסיפו מטופל. הערות הביקור נשארות במכשיר."},
+    "kinds": [],
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "package_balance", "label": {"en": "Package balance", "ru": "Баланс пакета", "he": "יתרת חבילה"}, "type": "number"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Patients", "ru": "Пациенты", "he": "מטופלים"}},
+    {"route": "entities:visit", "label": {"en": "Visits", "ru": "Визиты", "he": "ביקורים"}},
+    {"route": "entities:service", "label": {"en": "Services", "ru": "Услуги", "he": "שירותים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "service",
+      "label": {"en": "Service", "ru": "Услуга", "he": "שירות"},
+      "listMoney": "price",
+      "fields": [
+        {"key": "duration_minutes", "label": {"en": "Duration (minutes)", "ru": "Длительность (мин)", "he": "משך (דקות)"}, "type": "number"},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"}
+      ]
+    },
+    {
+      "key": "visit",
+      "label": {"en": "Visit", "ru": "Визит", "he": "ביקור"},
+      "listBadge": "status",
+      "emptyTitle": {"en": "No visits yet", "ru": "Визитов пока нет", "he": "עדיין אין ביקורים"},
+      "emptyBody": {"en": "Book a visit. Private notes are stored only on this device and in your backup.", "ru": "Запишите визит. Личные заметки только на устройстве и в копии.", "he": "קבעו ביקור. הערות פרטיות נשמרות רק במכשיר ובגיבוי."},
+      "behaviors": ["weekly_series", "package_deduction", "visit_reminder"],
+      "relations": [
+        {"key": "client", "label": {"en": "Patient", "ru": "Пациент", "he": "מטופל"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "starts_at", "label": {"en": "Date and time", "ru": "Дата и время", "he": "תאריך ושעה"}, "type": "date", "required": true},
+        {"key": "duration_minutes", "label": {"en": "Duration (minutes)", "ru": "Длительность (мин)", "he": "משך (דקות)"}, "type": "number"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "booked", "label": {"en": "Booked", "ru": "Записан", "he": "נקבע"}},
+          {"value": "confirmed", "label": {"en": "Confirmed", "ru": "Подтверждён", "he": "אושר"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Состоялся", "he": "התקיים"}},
+          {"value": "no_show", "label": {"en": "No-show", "ru": "Неявка", "he": "לא הגיע"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменён", "he": "בוטל"}}
+        ]},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачен", "he": "לא שולם"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачен", "he": "שולם"}},
+          {"value": "package", "label": {"en": "From package", "ru": "Из пакета", "he": "מהחבילה"}}
+        ]},
+        {"key": "recurrence", "label": {"en": "Repeat", "ru": "Повтор", "he": "חזרה"}, "type": "select", "options": [
+          {"value": "none", "label": {"en": "Once", "ru": "Один раз", "he": "פעם אחת"}},
+          {"value": "weekly", "label": {"en": "Every week", "ru": "Каждую неделю", "he": "כל שבוע"}}
+        ]},
+        {"key": "remind_at", "label": {"en": "Reminder", "ru": "Напоминание", "he": "תזכורת"}, "type": "date"},
+        {"key": "private_notes", "label": {"en": "Private notes", "ru": "Личные заметки", "he": "הערות פרטיות"}, "type": "text"}
+      ]
+    }
+  ]
+}

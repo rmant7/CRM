@@ -5,7 +5,7 @@ import com.intelliverse.croman.data.reminder.AlarmPolicy
 import com.intelliverse.croman.domain.LessonSeries
 import com.intelliverse.croman.domain.MigrationDef
 import com.intelliverse.croman.domain.NavLabels
-import com.intelliverse.croman.domain.PackageBalance
+import com.intelliverse.croman.domain.PackageCharge
 import com.intelliverse.croman.domain.RenameDef
 import com.intelliverse.croman.domain.SplitDef
 import com.intelliverse.croman.domain.TaskLinks
@@ -56,10 +56,19 @@ class DomainRulesTest {
         val extra = LessonSeries.weeklyStarts(start)
         assertEquals(LessonSeries.WEEKS - 1, extra.size)
         assertEquals(start + 7L * 24 * 60 * 60 * 1000, extra.first())
-        assertEquals(3, PackageBalance.next(4, markDoneOnPackage = true, alreadyDeducted = false))
-        assertNull(PackageBalance.next(3, markDoneOnPackage = true, alreadyDeducted = true))
-        assertNull(PackageBalance.next(0, markDoneOnPackage = true, alreadyDeducted = false))
-        assertNull(PackageBalance.next(4, markDoneOnPackage = false, alreadyDeducted = false))
+        val balances = mutableMapOf("a" to 4, "b" to 2)
+        fun apply(charged: String?, status: String, student: String?): String? {
+            val (next, deltas) = PackageCharge.reconcile(charged, PackageCharge.counts(status, "package", student, false), student) { balances[it] ?: 0 }
+            deltas.forEach { (who, delta) -> balances[who] = (balances[who] ?: 0) + delta }
+            return next
+        }
+        val charged = apply(null, "done", "a")
+        assertEquals("a", charged)
+        assertEquals(3, balances["a"])
+        assertEquals(charged, apply(charged, "done", "a"))
+        assertEquals(3, balances["a"])
+        assertNull(apply(charged, "cancelled", "a"))
+        assertEquals(4, balances["a"])
     }
 
     @Test

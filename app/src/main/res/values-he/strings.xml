@@ -142,7 +142,10 @@
     <string name="upcoming">משימות קרובות</string>
     <string name="version_label">גרסה %1$s</string>
     <string name="whatsapp">וואטסאפ</string>
+    <string name="enable_process">הוספת תהליך</string>
     <string name="exact_alarm_prompt">אפשרו התראות מדויקות כדי שהתזכורת תופיע בזמן.</string>
+    <string name="pick_category">עם מה אתם עובדים?</string>
+    <string name="pick_category_body">בחרו נקודת התחלה. תהליך נוסף אפשר להוסיף אחר כך בהגדרות.</string>
     <string name="workspaces">סביבות עבודה</string>
     <string name="backup_password">סיסמה (לא חובה)</string>
     <string name="backup_password_confirm">אימות סיסמה</string>

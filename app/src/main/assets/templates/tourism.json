@@ -1,0 +1,52 @@
+{
+  "id": "tourism",
+  "version": 1,
+  "category": "tourism",
+  "process": "project_order",
+  "name": {"en": "Tourism and events", "ru": "Туризм и события", "he": "תיירות ואירועים"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No clients yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a client for a trip or an event.", "ru": "Добавьте клиента поездки или события.", "he": "הוסיפו לקוח לטיול או לאירוע."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:project", "label": {"en": "Trips", "ru": "Поездки", "he": "טיולים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "project",
+      "label": {"en": "Trip or event", "ru": "Поездка или событие", "he": "טיול או אירוע"},
+      "hasPhotos": true,
+      "listMoney": "prepayment",
+      "listBadge": "payment_status",
+      "pipeline": {"key": "trip", "stages": [
+        {"key": "inquiry", "label": {"en": "Inquiry", "ru": "Запрос", "he": "פנייה"}},
+        {"key": "booked", "label": {"en": "Booked", "ru": "Забронировано", "he": "הוזמן"}},
+        {"key": "done", "label": {"en": "Done", "ru": "Завершено", "he": "הסתיים"}, "won": true}
+      ]},
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "deadline", "label": {"en": "Deadline", "ru": "Срок", "he": "יעד"}, "type": "date"},
+        {"key": "prepayment", "label": {"en": "Prepayment", "ru": "Предоплата", "he": "מקדמה"}, "type": "money"},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачено", "he": "לא שולם"}},
+          {"value": "partial", "label": {"en": "Partial", "ru": "Частично", "he": "חלקי"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачено", "he": "שולם"}}
+        ]}
+      ]
+    }
+  ]
+}

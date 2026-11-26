@@ -119,11 +119,35 @@ object LessonSeries {
         (1 until weeks).map { firstStart + it * WEEK_MS }
 }
 
-object PackageBalance {
-    fun next(balance: Int, markDoneOnPackage: Boolean, alreadyDeducted: Boolean): Int? {
-        if (!markDoneOnPackage || alreadyDeducted) return null
-        if (balance <= 0) return null
-        return balance - 1
+object PackageCharge {
+    const val CHARGED_STUDENT = "charged_student"
+
+    fun counts(status: String?, payment: String?, student: String?, deleted: Boolean): Boolean =
+        !deleted && status == "done" && payment == "package" && !student.isNullOrBlank()
+
+    /**
+     * Moves a lesson between packages. [chargedTo] is the student whose package was already
+     * reduced. The result is the student who should stay recorded on the lesson, and the
+     * balance delta for each student (negative deducts). Repeating the same inputs changes nothing.
+     * A package with no remaining lessons is not charged.
+     */
+    fun reconcile(
+        chargedTo: String?,
+        shouldCharge: Boolean,
+        student: String?,
+        balanceOf: (String) -> Int,
+    ): Pair<String?, Map<String, Int>> {
+        val previous = chargedTo?.takeIf { it.isNotBlank() }
+        val target = if (shouldCharge) student?.takeIf { it.isNotBlank() } else null
+        if (previous == target) return previous to emptyMap()
+        val deltas = linkedMapOf<String, Int>()
+        if (previous != null) deltas[previous] = 1
+        if (target != null) {
+            val available = balanceOf(target) + (deltas[target] ?: 0)
+            if (available <= 0) return null to deltas.filterValues { it != 0 }
+            deltas[target] = (deltas[target] ?: 0) - 1
+        }
+        return target to deltas.filterValues { it != 0 }
     }
 }
 

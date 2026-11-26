@@ -148,7 +148,38 @@ class CromanStoreTest {
             mapOf("student" to "student"),
         )
         assertEquals("3", store.contactExtras("student")["package_balance"])
-        assertEquals("true", store.entityFields("lesson-1")["package_deducted"])
+        assertEquals("student", store.entityFields("lesson-1")["charged_student"])
+    }
+
+    @Test
+    fun packageChargeIsIdempotentAcrossCancelDeleteMoveAndRestore() = runBlocking {
+        val workspace = store.installWorkspace(shell("tutor", 1), "Tutor")
+        store.saveContact(Contact("a", workspace, "Anna", "", "", "", ContactKind.OTHER, "", "", 1, 1))
+        store.saveContact(Contact("b", workspace, "Boris", "", "", "", ContactKind.OTHER, "", "", 1, 1))
+        store.saveContactExtras(workspace, "a", mapOf("package_balance" to "5"))
+        store.saveContactExtras(workspace, "b", mapOf("package_balance" to "4"))
+        val fields = mapOf("status" to "done", "payment_status" to "package", "starts_at" to "1000")
+        store.saveEntity(workspace, "l1", lessonType(), "Math", null, fields, mapOf("student" to "a"))
+        assertEquals("4", store.contactExtras("a")["package_balance"])
+        store.saveEntity(workspace, "l1", lessonType(), "Math", null, fields, mapOf("student" to "a"))
+        assertEquals("4", store.contactExtras("a")["package_balance"])
+        store.saveEntity(workspace, "l1", lessonType(), "Math", null, fields + ("status" to "cancelled"), mapOf("student" to "a"))
+        assertEquals("5", store.contactExtras("a")["package_balance"])
+        assertNull(store.entityFields("l1")["charged_student"])
+        store.saveEntity(workspace, "l1", lessonType(), "Math", null, fields, mapOf("student" to "a"))
+        store.saveEntity(workspace, "l1", lessonType(), "Math", null, fields, mapOf("student" to "b"))
+        assertEquals("5", store.contactExtras("a")["package_balance"])
+        assertEquals("3", store.contactExtras("b")["package_balance"])
+        store.softDeleteEntity("l1")
+        assertEquals("4", store.contactExtras("b")["package_balance"])
+        assertNull(store.getEntity("l1"))
+        store.restoreEntity("l1")
+        assertEquals("3", store.contactExtras("b")["package_balance"])
+        store.restoreEntity("l1")
+        assertEquals("3", store.contactExtras("b")["package_balance"])
+        store.saveEntity(workspace, "l2", lessonType(), "Math 2", null, fields, mapOf("student" to "a"))
+        assertEquals("4", store.contactExtras("a")["package_balance"])
+        assertEquals("3", store.contactExtras("b")["package_balance"])
     }
 
     @Test

@@ -1,0 +1,77 @@
+{
+  "id": "beauty",
+  "version": 1,
+  "category": "beauty",
+  "process": "appointment",
+  "name": {"en": "Beauty salon", "ru": "Салон красоты", "he": "מכון יופי"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "features": ["payments"],
+  "contactProfile": {
+    "title": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No clients yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a client and a package balance.", "ru": "Добавьте клиента и баланс пакета.", "he": "הוסיפו לקוח ויתרת חבילה."},
+    "kinds": [],
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "package_balance", "label": {"en": "Package balance", "ru": "Баланс пакета", "he": "יתרת חבילה"}, "type": "number"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:visit", "label": {"en": "Visits", "ru": "Визиты", "he": "ביקורים"}},
+    {"route": "entities:service", "label": {"en": "Services", "ru": "Услуги", "he": "שירותים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "service",
+      "label": {"en": "Service", "ru": "Услуга", "he": "שירות"},
+      "listMoney": "price",
+      "listSubtitle": ["duration_minutes"],
+      "fields": [
+        {"key": "duration_minutes", "label": {"en": "Duration (minutes)", "ru": "Длительность (мин)", "he": "משך (דקות)"}, "type": "number"},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
+        {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "text"}
+      ]
+    },
+    {
+      "key": "visit",
+      "label": {"en": "Visit", "ru": "Визит", "he": "ביקור"},
+      "listBadge": "status",
+      "listMoney": "price",
+      "emptyTitle": {"en": "No visits yet", "ru": "Визитов пока нет", "he": "עדיין אין ביקורים"},
+      "emptyBody": {"en": "Book a visit. Weekly visits repeat for 12 weeks.", "ru": "Запишите визит. Еженедельные повторяются 12 недель.", "he": "קבעו ביקור. ביקור שבועי חוזר 12 שבועות."},
+      "behaviors": ["weekly_series", "package_deduction", "visit_reminder"],
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"},
+        {"key": "service", "label": {"en": "Service", "ru": "Услуга", "he": "שירות"}, "target": "service"}
+      ],
+      "fields": [
+        {"key": "starts_at", "label": {"en": "Date and time", "ru": "Дата и время", "he": "תאריך ושעה"}, "type": "date", "required": true},
+        {"key": "duration_minutes", "label": {"en": "Duration (minutes)", "ru": "Длительность (мин)", "he": "משך (דקות)"}, "type": "number"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "booked", "label": {"en": "Booked", "ru": "Записан", "he": "נקבע"}},
+          {"value": "confirmed", "label": {"en": "Confirmed", "ru": "Подтверждён", "he": "אושר"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Состоялся", "he": "התקיים"}},
+          {"value": "no_show", "label": {"en": "No-show", "ru": "Неявка", "he": "לא הגיע"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменён", "he": "בוטל"}}
+        ]},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачен", "he": "לא שולם"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачен", "he": "שולם"}},
+          {"value": "package", "label": {"en": "From package", "ru": "Из пакета", "he": "מהחבילה"}}
+        ]},
+        {"key": "recurrence", "label": {"en": "Repeat", "ru": "Повтор", "he": "חזרה"}, "type": "select", "options": [
+          {"value": "none", "label": {"en": "Once", "ru": "Один раз", "he": "פעם אחת"}},
+          {"value": "weekly", "label": {"en": "Every week", "ru": "Каждую неделю", "he": "כל שבוע"}}
+        ]},
+        {"key": "remind_at", "label": {"en": "Reminder", "ru": "Напоминание", "he": "תזכורת"}, "type": "date"},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"}
+      ]
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 {
   "id": "tutor",
   "version": 1,
+  "category": "tutoring",
+  "process": "appointment",
   "name": {"en": "Tutor", "ru": "Репетитор", "he": "מורה פרטי"},
   "country": "RU",
   "dashboard": "generic",
@@ -49,7 +51,7 @@
       "listSubtitle": ["subject"],
       "emptyTitle": {"en": "No lessons yet", "ru": "Уроков пока нет", "he": "עדיין אין שיעורים"},
       "emptyBody": {"en": "Schedule a lesson for a student. Weekly lessons repeat for 12 weeks.", "ru": "Назначьте урок ученику. Еженедельные уроки повторяются 12 недель.", "he": "קבעו שיעור לתלמיד. שיעור שבועי חוזר 12 שבועות."},
-      "behaviors": ["weekly_series", "package_deduction"],
+      "behaviors": ["weekly_series", "package_deduction", "visit_reminder"],
       "relations": [
         {"key": "student", "label": {"en": "Student", "ru": "Ученик", "he": "תלמיד"}, "target": "contact"}
       ],
@@ -72,6 +74,7 @@
           {"value": "paid", "label": {"en": "Paid", "ru": "Оплачен", "he": "שולם"}},
           {"value": "package", "label": {"en": "From package", "ru": "Из пакета", "he": "מהחבילה"}}
         ]},
+        {"key": "remind_at", "label": {"en": "Reminder", "ru": "Напоминание", "he": "תזכורת"}, "type": "date"},
         {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
         {"key": "currency", "label": {"en": "Currency", "ru": "Валюта", "he": "מטבע"}, "type": "select", "options": [
           {"value": "RUB", "label": {"en": "RUB", "ru": "RUB", "he": "RUB"}},

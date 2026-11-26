@@ -1,0 +1,50 @@
+{
+  "id": "sport",
+  "version": 1,
+  "category": "sport",
+  "process": "appointment",
+  "name": {"en": "Sport and fitness", "ru": "Спорт и фитнес", "he": "ספורט וכושר"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "contactProfile": {
+    "title": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"},
+    "emptyTitle": {"en": "No clients yet", "ru": "Клиентов пока нет", "he": "עדיין אין לקוחות"},
+    "emptyBody": {"en": "Add a client for a session.", "ru": "Добавьте клиента на занятие.", "he": "הוסיפו לקוח לאימון."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "package_balance", "label": {"en": "Package balance", "ru": "Баланс пакета", "he": "יתרת חבילה"}, "type": "number"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "Clients", "ru": "Клиенты", "he": "לקוחות"}},
+    {"route": "entities:visit", "label": {"en": "Sessions", "ru": "Занятия", "he": "אימונים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "visit",
+      "label": {"en": "Session", "ru": "Занятие", "he": "אימון"},
+      "listBadge": "status",
+      "behaviors": ["package_deduction", "visit_reminder"],
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "starts_at", "label": {"en": "Date and time", "ru": "Дата и время", "he": "תאריך ושעה"}, "type": "date"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "booked", "label": {"en": "Booked", "ru": "Записан", "he": "נקבע"}},
+          {"value": "done", "label": {"en": "Done", "ru": "Прошло", "he": "התקיים"}},
+          {"value": "cancelled", "label": {"en": "Cancelled", "ru": "Отменено", "he": "בוטל"}}
+        ]},
+        {"key": "payment_status", "label": {"en": "Payment", "ru": "Оплата", "he": "תשלום"}, "type": "select", "options": [
+          {"value": "unpaid", "label": {"en": "Unpaid", "ru": "Не оплачено", "he": "לא שולם"}},
+          {"value": "package", "label": {"en": "From package", "ru": "Из пакета", "he": "מהחבילה"}}
+        ]},
+        {"key": "remind_at", "label": {"en": "Reminder", "ru": "Напоминание", "he": "תזכורת"}, "type": "date"}
+      ]
+    }
+  ]
+}
