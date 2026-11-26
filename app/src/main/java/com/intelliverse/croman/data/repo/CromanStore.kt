@@ -851,6 +851,33 @@ class CromanStore(
         )
     }
 
+    /** Deletes only the listed records. Used for demo data, never for a whole workspace. */
+    suspend fun eraseOwned(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        val db = database().openHelper.writableDatabase
+        database().withTransaction {
+            val tables = mutableSetOf<String>()
+            db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
+                while (cursor.moveToNext()) tables += cursor.getString(0)
+            }
+            fun run(table: String, sql: String, args: Array<String>) {
+                if (table in tables) db.execSQL(sql, args)
+            }
+            for (id in ids) {
+                run("field_values", "DELETE FROM field_values WHERE entity_id = ? OR id LIKE ?", arrayOf(id, "$id:%"))
+                run("entity_relations", "DELETE FROM entity_relations WHERE from_id = ? OR to_id = ?", arrayOf(id, id))
+                run("tasks", "DELETE FROM tasks WHERE id = ? OR contact_id = ? OR entity_id = ?", arrayOf(id, id, id))
+                run("calendar_events", "DELETE FROM calendar_events WHERE contact_id = ? OR entity_id = ? OR id = ?", arrayOf(id, id, "cal-$id"))
+                run("payments", "DELETE FROM payments WHERE contact_id = ? OR entity_id = ?", arrayOf(id, id))
+                run("documents", "DELETE FROM documents WHERE owner_id = ? OR id = ?", arrayOf(id, id))
+                run("activities", "DELETE FROM activities WHERE contact_id = ? OR entity_id = ? OR id = ?", arrayOf(id, id, id))
+                run("message_log", "DELETE FROM message_log WHERE contact_id = ? OR id = ?", arrayOf(id, id))
+                run("contacts", "DELETE FROM contacts WHERE id = ?", arrayOf(id))
+                run("entities", "DELETE FROM entities WHERE id = ?", arrayOf(id))
+            }
+        }
+    }
+
     private fun stamp(workspaceId: String, createdAt: Long, updatedAt: Long): SyncStamp =
         SyncStamp(workspaceId, userId, userId, userId, null, createdAt, updatedAt, null)
 
