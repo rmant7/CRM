@@ -19,12 +19,14 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 adb wait-for-device
-if ! adb install -r -t -g "$APK"; then
-  echo "fail: API ${API} could not install the app" | tee "$OUT/status.txt"
+if [ ! -f "$APK" ] || ! adb install -r -t -g "$APK" >"$OUT/install-app.txt" 2>&1; then
+  echo "fail: API ${API} could not install the app ($APK)" | tee "$OUT/status.txt"
+  cat "$OUT/install-app.txt" >> "$OUT/status.txt" 2>/dev/null || true
   exit 1
 fi
-if ! adb install -r -t -g "$TEST_APK"; then
-  echo "fail: API ${API} could not install the tests" | tee "$OUT/status.txt"
+if [ ! -f "$TEST_APK" ] || ! adb install -r -t -g "$TEST_APK" >"$OUT/install-tests.txt" 2>&1; then
+  echo "fail: API ${API} could not install the tests ($TEST_APK)" | tee "$OUT/status.txt"
+  cat "$OUT/install-tests.txt" >> "$OUT/status.txt" 2>/dev/null || true
   exit 1
 fi
 
