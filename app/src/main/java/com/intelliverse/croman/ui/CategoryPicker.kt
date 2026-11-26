@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.intelliverse.croman.R
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -58,22 +61,31 @@ internal fun OnboardingChoices(
     onDescribe: (String) -> OnboardingMatch,
 ) {
     var otherOpen by remember { mutableStateOf(false) }
+    var moreOpen by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf("") }
     var suggestion by remember { mutableStateOf<OnboardingMatch?>(null) }
+    val primary = Onboarding.primary(offers)
+    val more = Onboarding.moreFields(offers)
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.onboard_welcome), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(stringResource(R.string.onboard_question), style = MaterialTheme.typography.headlineMedium)
-        offers.forEach { offer ->
-            Button(onClick = { onPick(offer.templateId) }, modifier = Modifier.fillMaxWidth()) {
-                Text(l10n(offer.phrase), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.onboard_welcome), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.onboard_question), style = MaterialTheme.typography.headlineSmall)
+        primary.forEach { offer ->
+            ChoiceTile(l10n(offer.phrase), filled = true) { onPick(offer.templateId) }
+        }
+        if (more.isNotEmpty()) {
+            ChoiceTile(stringResource(R.string.onboard_more), filled = false) { moreOpen = !moreOpen }
+        }
+        if (moreOpen) {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                more.forEach { offer ->
+                    ChoiceTile(l10n(offer.phrase), filled = true) { onPick(offer.templateId) }
+                }
             }
         }
-        OutlinedButton(onClick = { otherOpen = !otherOpen }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.onboard_other), style = MaterialTheme.typography.titleMedium)
-        }
+        ChoiceTile(stringResource(R.string.onboard_other), filled = false) { otherOpen = !otherOpen }
         if (otherOpen) {
             OutlinedTextField(
                 description,
@@ -98,6 +110,22 @@ internal fun OnboardingChoices(
             }
         }
     }
+}
+
+@Composable
+private fun ChoiceTile(label: String, filled: Boolean, onClick: () -> Unit) {
+    val text = @Composable {
+        Text(
+            label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.titleMedium,
+        )
+    }
+    val modifier = Modifier.fillMaxWidth().height(64.dp)
+    if (filled) Button(onClick = onClick, modifier = modifier) { text() } else OutlinedButton(onClick = onClick, modifier = modifier) { text() }
 }
 
 private suspend fun open(container: com.intelliverse.croman.di.AppContainer, context: android.content.Context, templateId: String, language: String) {

@@ -21,15 +21,23 @@ def parse_packages(text):
     return found
 
 
-def pick(wanted, packages):
-    images = [item for item in packages if item[1] == "google_apis" and item[2] == "x86_64"]
-    if any(api == wanted for api, _target, _abi in images):
-        return wanted, "google_apis", ""
-    if not images:
-        raise SystemExit("sdkmanager lists no x86_64 google_apis system images")
-    nearest = min(images, key=lambda item: (abs(item[0] - wanted), item[0]))
-    note = f"API {wanted} x86_64 google_apis is not offered; using API {nearest[0]}"
-    return nearest[0], "google_apis", note
+def pick(wanted, packages, preferred="google_apis"):
+    def of(target):
+        return [item for item in packages if item[1] == target and item[2] == "x86_64"]
+
+    preferred_images = of(preferred)
+    if any(api == wanted for api, _target, _abi in preferred_images):
+        note = "" if preferred == "google_apis" else f"API {wanted} uses the lighter {preferred} x86_64 image"
+        return wanted, preferred, note
+    google = of("google_apis")
+    if any(api == wanted for api, _target, _abi in google):
+        return wanted, "google_apis", f"API {wanted} {preferred} x86_64 is not offered; using google_apis"
+    pool = preferred_images or google or of("default")
+    if not pool:
+        raise SystemExit("sdkmanager lists no x86_64 system images")
+    nearest = min(pool, key=lambda item: (abs(item[0] - wanted), item[0]))
+    note = f"API {wanted} x86_64 {preferred} is not offered; using API {nearest[0]} {nearest[1]}"
+    return nearest[0], nearest[1], note
 
 
 def self_check():
@@ -45,6 +53,8 @@ def self_check():
     assert (api, target, note) == (30, "google_apis", "")
     api, target, note = pick(36, packages)
     assert api == 35 and target == "google_apis" and "using API 35" in note
+    api, target, note = pick(30, packages, "default")
+    assert (api, target) == (30, "google_apis") and "not offered" in note
     api, _target, note = pick(23, packages)
     assert api == 23 and note == ""
     print("pick-emulator-image self-check ok")
@@ -56,7 +66,8 @@ def main():
         return
     wanted = int(sys.argv[1])
     text = open(sys.argv[2], encoding="utf-8", errors="replace").read()
-    api, target, note = pick(wanted, parse_packages(text))
+    preferred = sys.argv[3] if len(sys.argv) > 3 else "google_apis"
+    api, target, note = pick(wanted, parse_packages(text), preferred)
     print(f"{api}\t{target}\t{note}")
 
 

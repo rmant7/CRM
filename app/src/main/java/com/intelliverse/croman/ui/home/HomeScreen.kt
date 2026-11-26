@@ -37,7 +37,9 @@ import com.intelliverse.croman.R
 import com.intelliverse.croman.data.demo.DemoIds
 import com.intelliverse.croman.data.demo.DemoSamples
 import com.intelliverse.croman.di.LocalAppContainer
+import com.intelliverse.croman.domain.HomePrompt
 import com.intelliverse.croman.domain.Onboarding
+import com.intelliverse.croman.domain.homePrompt
 import com.intelliverse.croman.domain.TemplateFile
 import com.intelliverse.croman.ui.Routes
 import com.intelliverse.croman.ui.components.CrmScaffold
@@ -71,12 +73,14 @@ fun HomeScreen(
             )
         }
     }) { padding ->
+        val contacts by container.store.observeContacts(workspaceId, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
+        val realClients = contacts.count { it.deletedAt == null && it.id !in demoIds }
+        val prompt = homePrompt(realClients, demoIds.isNotEmpty())
         val data = summary
         if (data == null) {
             LoadingBox(Modifier.padding(padding))
             return@CrmScaffold
         }
-        val empty = data.contacts == 0 && data.activeListings == 0 && data.recentDeals.isEmpty() && data.upcoming.isEmpty()
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             item {
                 Text(l10n(Onboarding.homeLine(template.id)), style = MaterialTheme.typography.titleLarge)
@@ -84,6 +88,7 @@ fun HomeScreen(
             if (demoIds.isNotEmpty()) {
                 item {
                     Text(stringResource(R.string.demo_badge), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.demo_numbers), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(stringResource(R.string.demo_banner), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = {
                         scope.launch {
@@ -93,7 +98,7 @@ fun HomeScreen(
                     }) { Text(stringResource(R.string.delete_demo)) }
                 }
             }
-            if (empty) {
+            if (prompt == HomePrompt.EMPTY) {
                 item {
                     EmptyDesk(onAdd = { onOpenRoute(Routes.contactEdit()) }, onExample = {
                         scope.launch {
@@ -104,9 +109,7 @@ fun HomeScreen(
                 }
             } else {
                 item {
-                    Button(onClick = { onOpenRoute(Routes.contactEdit()) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.add_first_client))
-                    }
+                    HomeCallToAction(prompt) { onOpenRoute(Routes.contactEdit()) }
                 }
                 item {
                     Text(
@@ -116,7 +119,7 @@ fun HomeScreen(
                     )
                 }
             }
-            if (data.stages.isNotEmpty()) {
+            if (prompt != HomePrompt.EMPTY && data.stages.isNotEmpty()) {
                 item {
                     LazyRow(
                         Modifier.fillMaxWidth().height(88.dp),
@@ -152,6 +155,18 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun HomeCallToAction(prompt: HomePrompt, onAdd: () -> Unit) {
+    val label = when (prompt) {
+        HomePrompt.DEMO_ONLY -> stringResource(R.string.add_own_client)
+        HomePrompt.HAS_REAL -> stringResource(R.string.add_client)
+        HomePrompt.EMPTY -> stringResource(R.string.add_first_client)
+    }
+    Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().height(64.dp)) {
+        Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }
 

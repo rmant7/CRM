@@ -157,6 +157,10 @@
     <string name="onboard_welcome">Welcome. Everything stays on this phone.</string>
     <string name="onboard_question">What do you do?</string>
     <string name="onboard_other">Something else</string>
+    <string name="onboard_more">More fields</string>
+    <string name="add_own_client">Add your own client</string>
+    <string name="add_client">Add client</string>
+    <string name="demo_numbers">These numbers are from the demo.</string>
     <string name="onboard_describe">Describe it in a few words</string>
     <string name="onboard_match">Find a setup</string>
     <string name="onboard_notice">There is no dedicated template for this yet. This is the closest working setup, and you can change it later in settings.</string>

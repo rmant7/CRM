@@ -158,6 +158,10 @@
     <string name="onboard_welcome">ברוכים הבאים. הכול נשאר בטלפון הזה.</string>
     <string name="onboard_question">במה אתם עוסקים?</string>
     <string name="onboard_other">משהו אחר</string>
+    <string name="onboard_more">עוד תחומים</string>
+    <string name="add_own_client">הוספת הלקוח שלך</string>
+    <string name="add_client">הוספת לקוח</string>
+    <string name="demo_numbers">אלה מספרים מההדגמה.</string>
     <string name="onboard_describe">תארו בכמה מילים</string>
     <string name="onboard_match">מציאת התאמה</string>
     <string name="onboard_notice">אין עדיין תבנית ייעודית לזה. זו ההגדרה העובדת הקרובה ביותר, ואפשר לשנות אותה אחר כך בהגדרות.</string>
