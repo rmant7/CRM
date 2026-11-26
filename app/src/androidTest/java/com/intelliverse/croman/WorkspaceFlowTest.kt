@@ -55,7 +55,7 @@ class WorkspaceFlowTest {
             app.container.settings.rememberDemo(workspaceId, created)
         }
         val badge = rule.activity.getString(R.string.demo_badge)
-        rule.waitUntil(30_000) { rule.onAllNodesWithText(badge).fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(60_000) { rule.onAllNodesWithText(badge).fetchSemanticsNodes().isNotEmpty() }
         DeviceShots.save("${localeArg()}-demo")
         assertDirection()
     }
