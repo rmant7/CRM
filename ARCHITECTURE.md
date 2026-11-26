@@ -1,59 +1,43 @@
 # Architecture
 
-Mantel CRM 0.1 is a single-device Android app. The shape of the code is meant to survive the next two steps without a rewrite: a file-level backup/restore, then one phone acting as a LAN server for other phones, and later a hosted backend.
+CRoMan 0.2 is one Android app with five layers. Networking is not implemented. The data shape is the same one a later LAN peer or a cloud backend would sync.
 
 ## Layers
 
-```
-ui  →  domain  ←  data
-```
+1. **Typed core.** Contacts, tasks, activities, calendar events, payments (income, expense, debt), catalog items, documents, and the message log are real tables. Realtor clients are contacts. Listing photos are documents. A task with a due date also writes a calendar event.
+2. **Configuration engine.** A workspace is created from a `WorkspaceTemplate` (`template_id` + `template_version`) stored as versioned JSON in `assets/templates`. The template declares entity types, custom fields, pipelines, relations, menu, messengers, and message texts. Field keys are stable and independent of the RU/EN/HE labels. Values live in `field_values` with typed columns (`value_text`, `value_number`, `value_money`, `value_date`, `value_bool`, `value_ref`, `value_json`) and indexes, so filter, sort, and search do not scan a blob. Entities also keep `search_text`, `badge`, `subtitle`, and `money_amount` so lists stay one indexed query. `view_configs` stores the template document for the workspace.
+3. **Specialized logic.** Only where the behaviour is not generic. The realtor home counts active listings (`status = active`) and open pipeline stages. Everything else on that home is the same task and entity data.
+4. **Country adapters.** `CountryAdapter` decides which messenger ids a country allows. `MessengerGateway` builds the share URL. The contact screen only asks the registry. WhatsApp, Telegram, and MAX are gateways. Israel allows WhatsApp and Telegram. Russia also allows MAX. A workspace country of `*` allows every gateway the template lists.
+5. **Data / sync.** Room database `croman.db`, schema version 1, `exportSchema` on, schema committed. v0.1 used another application id, so there is no data migration from it. From 0.2 onward every schema change needs a `Migration` and a new schema file. There is no destructive fallback.
 
-- `domain` has no Android framework types. Models, pure rules (search, money, dates, dashboard), and repository interfaces live here.
-- `data` implements those interfaces with Room on one SQLite file, DataStore preferences, photo files, and `AlarmManager` reminders.
-- `ui` is Jetpack Compose. View models talk only to the repository interfaces (and to `PhotoStore` when copying a picture the user just picked).
-- `AppContainer` is manual dependency injection. A Hilt graph, or a remote data module, can replace it without touching screens as long as the interfaces stay.
+## Record shape
 
-## One database, ready for sync
+Every row has `id` (UUID), `workspace_id`, `owner_user_id`, `created_by_user_id`, `updated_by_user_id`, `assigned_to_user_id` (nullable), `created_at`, `updated_at`, `deleted_at`. The only user is the local id. There is no permissions UI.
 
-File: `mantel_crm.db` (Room `CrmDatabase`, version 1).
+`change_log` stores `table_name`, `subject_id`, `operation` (`upsert` or `delete`), and `changed_at`. A future peer, whether another Android phone on the LAN or a cloud API, can pull `changed_at > cursor`, apply the row when `updated_at` is newer, and treat `deleted_at` as a tombstone. The same tables are the protocol. Repositories are the only writers.
 
-Tables: `clients`, `properties`, `property_photos`, `deals`, `tasks`, `activities`.
+## Template versions
 
-Every row has:
+`TemplateMigrations` applies ordered rules between versions: rename a field key (definition and values move together) or split one value into several keys. Rules are data, not code. Realtor ships at version 1 with an empty rule list. The unit test covers rename and split without dropping the original text.
 
-- `id` — UUID string, generated on the device. No autoincrement. Two devices can create rows without colliding, and a future server can keep the same id.
-- `createdAt` / `updatedAt` — epoch millis. `save()` keeps the original `createdAt`.
-- `deletedAt` — null while the row is live. The UI deletes by setting this tombstone. Queries that feed the UI filter `deletedAt IS NULL`. A later sync can ship the tombstone instead of dropping the row.
+## Backup
 
-`exportSchema = true`. The checked-in schema is `app/schemas/com.mantelmakher.crm.data.local.CrmDatabase/1.json`. There is no destructive migration fallback. Version 2 must ship a `Migration(1, 2)`.
+Format version 1 is a zip:
 
-Photos are files under `filesDir/property-photos/`, not blobs in SQLite. The photo row stores the file name. Deleting a photo tombstones the row and removes the file.
+- `manifest.json` with `formatVersion`, `app`, `createdAt`
+- `database/croman.db`
+- `photos/<file>`
 
-Text search runs in the repository, in Kotlin, over the active rows. SQLite `LIKE` is not case-insensitive for Cyrillic; Hebrew has no case, but Russian search has to fold case. A remote implementation can replace this with server search behind the same `observe(query, …)` methods.
+Import checks the manifest version and that the database entry starts with the SQLite header, then replaces the local file and photos. `BackupArchive` is plain JVM code. The unit test exports, wipes the files, restores, and compares bytes.
 
-## Backup, then LAN, then a backend
+## Messengers
 
-Not in this version. The seams are already there:
+A message row is created as `PREPARED`, moves to `OPENED` when the other app starts, and becomes `SENT` only after the user confirms on return. The app does not read the thread.
 
-1. **Backup / restore.** Copy `mantel_crm.db` (and the `property-photos` directory), or export the six tables as JSON. UUIDs and tombstones make a later merge possible. Android backup rules already include the database and the photo directory for device transfer.
-2. **LAN.** One device can host the same repository operations over the local network. UI stays. Swap `Room*Repository` for a client that calls the host.
-3. **Hosted backend.** Same interfaces. `deletedAt` and `updatedAt` are the sync cursor. Conflict policy can be “latest `updatedAt` wins” per row, with tombstones winning over older edits.
+## Language
 
-`ReminderScheduler` is a port. The alarm implementation is local. A sync client should reschedule from the tasks it just pulled (`TaskRepository.rescheduleAll()` already does that on startup and after boot).
+Chrome strings are in `values`, `values-ru`, `values-he`, and `values-iw` (Android still resolves Hebrew resources as `iw`). Field labels and pipeline names come from the template. `AppCompatDelegate.setApplicationLocales` plus `locales_config.xml` switch the app language. `android:supportsRtl="true"`.
 
-## Language and RTL
+## Build
 
-User-facing copy is in `res/values` (English), `res/values-ru`, and `res/values-he`. The same Hebrew file is also in `res/values-iw`: current Android still resolves the Hebrew locale to the legacy `iw` resource qualifier, so a `he` folder alone leaves the layout right-to-left while the strings stay in the default language.
-
-- `res/xml/locales_config.xml` registers `en`, `ru`, and `he` for the Android 13 per-app language API.
-- The in-app switcher calls `AppCompatDelegate.setApplicationLocales`, which is the fallback below Android 13 and also updates the system setting on 13+.
-- The choice is stored in DataStore (`language_tag`) and applied again on the next cold start. `autoStoreLocales` is enabled so AppCompat can restore it before the first frame.
-- `android:supportsRtl="true"`. Hebrew (`he` / legacy `iw`) flips layout direction. The UI uses start/end alignment. Phone numbers, emails, and amounts are forced LTR so they stay readable inside an RTL screen.
-
-## What is intentionally local
-
-The manifest does not request `INTERNET`. Call, email, and WhatsApp are intents to other apps. Task reminders use inexact `AlarmManager.setAndAllowWhileIdle` plus a notification channel. They are best-effort under Doze; they do not need a server. After reboot, `BootReceiver` reschedules future reminders. A force-stop clears alarms until the user opens the app again — that is Android policy.
-
-## Build and release
-
-Debug builds are what we ship for sideloading in this stage. GitHub Actions builds only on tags `v*.*.*` and on `workflow_dispatch`. It does not build on every push or pull request. The workflow publishes one APK on a GitHub Release and deletes older releases, their tags, and Actions artifacts so only the latest build remains.
+Release workflow runs on tags `v*.*.*` and `workflow_dispatch` only. The asset is `croman-vX.Y.Z.apk`.

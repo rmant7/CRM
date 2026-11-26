@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <include domain="database" path="mantel_crm.db" />
-        <include domain="file" path="property-photos" />
+        <include domain="database" path="croman.db" />
+        <include domain="file" path="photos" />
     </cloud-backup>
     <device-transfer>
-        <include domain="database" path="mantel_crm.db" />
-        <include domain="file" path="property-photos" />
+        <include domain="database" path="croman.db" />
+        <include domain="file" path="photos" />
     </device-transfer>
 </data-extraction-rules>

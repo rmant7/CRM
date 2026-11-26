@@ -16,10 +16,12 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <package android:name="org.telegram.messenger" />
+        <package android:name="ru.oneme.app" />
     </queries>
 
     <application
-        android:name=".CrmApplication"
+        android:name=".CromanApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -28,7 +30,7 @@
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MantelCrm">
+        android:theme="@style/Theme.Croman">
 
         <activity
             android:name=".MainActivity"
