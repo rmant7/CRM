@@ -164,14 +164,21 @@ jobs:
 
       - name: Write emulator job env
         run: |
+          set -euo pipefail
+          APP_APK=$(find "$GITHUB_WORKSPACE/dist" -type f -name 'app-debug.apk' | head -n 1)
+          TEST_APK=$(find "$GITHUB_WORKSPACE/dist" -type f -name 'app-debug-androidTest.apk' | head -n 1)
+          test -n "$APP_APK"
+          test -n "$TEST_APK"
           cat > "$GITHUB_WORKSPACE/emulator-job.env" <<EOF
-          CROMAN_APK=$GITHUB_WORKSPACE/dist/app-debug.apk
-          CROMAN_TEST_APK=$GITHUB_WORKSPACE/dist/app-debug-androidTest.apk
+          CROMAN_APK=$APP_APK
+          CROMAN_TEST_APK=$TEST_APK
           CROMAN_LOCALES='${{ matrix.locales }}'
           CROMAN_API=${{ steps.image.outputs.api }}
           CROMAN_IMAGE_NOTE='${{ steps.image.outputs.note }}'
           CROMAN_RESULTS=$GITHUB_WORKSPACE/device-results
           EOF
+          echo "App: $APP_APK"
+          echo "Tests: $TEST_APK"
 
       - name: Boot emulator and test
         id: attempt1
@@ -422,7 +429,9 @@ jobs:
           else
             TAG="v$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
           fi
-          cp dist/app-debug.apk "croman-${TAG}.apk"
+          APP_APK=$(find dist -type f -name 'app-debug.apk' | head -n 1)
+          test -n "$APP_APK"
+          cp "$APP_APK" "croman-${TAG}.apk"
           SHA="$(sha256sum "croman-${TAG}.apk" | awk '{print $1}')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
