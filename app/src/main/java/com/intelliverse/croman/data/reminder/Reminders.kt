@@ -30,8 +30,15 @@ class AlarmReminderScheduler(private val context: Context) {
             manager.cancel(pending)
             return
         }
-        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        if (AlarmPolicy.choose(Build.VERSION.SDK_INT, canExact(manager)) == AlarmPolicy.EXACT) {
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        } else {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        }
     }
+
+    private fun canExact(manager: AlarmManager): Boolean =
+        Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()
 
     fun cancel(taskId: String) {
         context.getSystemService(AlarmManager::class.java).cancel(pending(taskId))
@@ -46,6 +53,14 @@ class AlarmReminderScheduler(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
+}
+
+object AlarmPolicy {
+    const val EXACT = "exact"
+    const val WHILE_IDLE = "while-idle"
+
+    fun choose(sdk: Int, canScheduleExact: Boolean): String =
+        if (sdk < 31 || canScheduleExact) EXACT else WHILE_IDLE
 }
 
 object TaskNotifications {
@@ -113,7 +128,8 @@ class ReminderReceiver : BroadcastReceiver() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        if (intent?.action != Intent.ACTION_BOOT_COMPLETED) return
+        val action = intent?.action
+        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         val pending = goAsync()
         val app = context.applicationContext as CromanApp
         CoroutineScope(Dispatchers.IO).launch {

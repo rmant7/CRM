@@ -6,6 +6,8 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val cromanKeystore = file(System.getenv("CROMAN_KEYSTORE") ?: rootProject.file("signing/croman-test.keystore").absolutePath)
+
 android {
     namespace = "com.intelliverse.croman"
     compileSdk = 35
@@ -14,16 +16,31 @@ android {
         applicationId = "com.intelliverse.croman"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
     }
 
+    signingConfigs {
+        create("stable") {
+            storeFile = cromanKeystore
+            storePassword = System.getenv("CROMAN_STORE_PASSWORD") ?: "croman-test"
+            keyAlias = System.getenv("CROMAN_KEY_ALIAS") ?: "croman"
+            keyPassword = System.getenv("CROMAN_KEY_PASSWORD") ?: "croman-test"
+            enableV1Signing = true
+            enableV2Signing = true
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("stable")
+        }
         release {
+            signingConfig = signingConfigs.getByName("stable")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -79,6 +96,20 @@ tasks.matching { it.name == "kspReleaseKotlin" }.configureEach {
     mustRunAfter(tasks.matching { it.name == "kspDebugKotlin" })
 }
 
+val validateSigningCroman = tasks.register("validateSigningCroman") {
+    doLast {
+        if (!cromanKeystore.isFile) {
+            throw GradleException(
+                "CRoMan signing keystore is missing at $cromanKeystore. " +
+                    "Refusing to fall back to an auto-generated debug key.",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" || it.name == "packageDebug" || it.name == "packageRelease" }.configureEach {
+    dependsOn(validateSigningCroman)
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -116,4 +147,8 @@ dependencies {
     testImplementation("androidx.test.ext:junit:1.2.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("org.xerial:sqlite-jdbc:3.47.2.0")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

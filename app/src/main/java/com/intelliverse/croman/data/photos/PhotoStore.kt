@@ -10,6 +10,16 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
 
+internal fun sampleSizeFor(width: Int, height: Int, maxSide: Int): Int {
+    var sample = 1
+    var longest = max(width, height)
+    while (longest / 2 >= maxSide) {
+        longest /= 2
+        sample *= 2
+    }
+    return sample
+}
+
 class PhotoStore(context: Context) {
     private val dir = File(context.applicationContext.filesDir, "photos").apply { mkdirs() }
     private val resolver = context.applicationContext.contentResolver
@@ -44,13 +54,23 @@ class PhotoStore(context: Context) {
                 ExifInterface.ORIENTATION_NORMAL,
             )
         }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-        val decoded = BitmapFactory.decodeFile(dest.absolutePath) ?: return
+        val decoded = decodeSampled(dest, 1600) ?: return
         val rotated = rotate(decoded, orientation)
         val scaled = scaleDown(rotated, 1600)
         FileOutputStream(dest).use { scaled.compress(Bitmap.CompressFormat.JPEG, 86, it) }
         if (scaled !== rotated) scaled.recycle()
         if (rotated !== decoded) rotated.recycle()
         decoded.recycle()
+    }
+
+    private fun decodeSampled(file: File, maxSide: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, maxSide)
+        }
+        return BitmapFactory.decodeFile(file.absolutePath, options)
     }
 
     private fun rotate(src: Bitmap, orientation: Int): Bitmap {

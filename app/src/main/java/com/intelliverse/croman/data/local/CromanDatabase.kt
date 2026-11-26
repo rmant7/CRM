@@ -324,8 +324,12 @@ interface ConfigDao {
     @Query("UPDATE field_definitions SET field_key = :toKey, updated_at = :now WHERE workspace_id = :workspaceId AND entity_type_key = :type AND field_key = :fromKey")
     suspend fun renameField(workspaceId: String, type: String, fromKey: String, toKey: String, now: Long)
 
-    @Query("UPDATE field_values SET field_key = :toKey, updated_at = :now WHERE workspace_id = :workspaceId AND field_key = :fromKey")
-    suspend fun renameValues(workspaceId: String, fromKey: String, toKey: String, now: Long)
+    @Query(
+        "UPDATE field_values SET field_key = :toKey, id = entity_id || ':' || :toKey, updated_at = :now " +
+            "WHERE field_key = :fromKey AND entity_id IN (" +
+            "SELECT id FROM entities WHERE workspace_id = :workspaceId AND entity_type_key = :type)",
+    )
+    suspend fun renameValuesForType(workspaceId: String, type: String, fromKey: String, toKey: String, now: Long)
 }
 
 @Dao

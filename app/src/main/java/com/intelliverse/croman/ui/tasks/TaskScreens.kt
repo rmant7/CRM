@@ -1,7 +1,11 @@
 package com.intelliverse.croman.ui.tasks
 
 import android.Manifest
+import android.app.AlarmManager
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -125,6 +129,7 @@ fun TaskEditorScreen(workspaceId: String, taskId: String?, contactId: String?, e
     val context = LocalContext.current
     val denied = stringResource(R.string.notifications_denied)
     val past = stringResource(R.string.reminder_past)
+    val exact = stringResource(R.string.exact_alarm_prompt)
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) scope.launch { snackbar.showSnackbar(denied) }
     }
@@ -133,6 +138,17 @@ fun TaskEditorScreen(workspaceId: String, taskId: String?, contactId: String?, e
         reminder = picked
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            val alarms = context.getSystemService(AlarmManager::class.java)
+            if (!alarms.canScheduleExactAlarms()) {
+                scope.launch { snackbar.showSnackbar(exact) }
+                runCatching {
+                    context.startActivity(
+                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).setData(Uri.parse("package:${context.packageName}")),
+                    )
+                }
+            }
         }
         if (picked <= System.currentTimeMillis()) scope.launch { snackbar.showSnackbar(past) }
     }

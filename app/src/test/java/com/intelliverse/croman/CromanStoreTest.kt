@@ -152,6 +152,56 @@ class CromanStoreTest {
     }
 
     @Test
+    fun injectedFailuresRollBackWorkspaceDealAndTask() = runBlocking {
+        store.faultAt = "workspace-row"
+        try {
+            store.installWorkspace(shell("realtor", 1), "Realtor")
+            throw AssertionError("workspace insert should fail")
+        } catch (error: IllegalStateException) {
+            assertTrue(error.message.orEmpty().contains("workspace-row"))
+        }
+        assertTrue(store.observeWorkspaces().first().isEmpty())
+        store.faultAt = null
+        val workspace = store.installWorkspace(shell("realtor", 1), "Realtor")
+        store.faultAt = "entity-row"
+        try {
+            store.saveEntity(workspace, "d1", dealType(), "Sale", "lead", emptyMap(), mapOf("client" to "c1", "property" to "p1"))
+            throw AssertionError("deal save should fail")
+        } catch (_: IllegalStateException) {
+        }
+        assertNull(store.getEntity("d1"))
+        assertTrue(store.entityRelations("d1").isEmpty())
+        store.faultAt = "task-row"
+        try {
+            store.saveTask(TaskItem("t-fail", workspace, "Call", "", 1_700_000_100_000L, null, null, "c", "e", 1, 1)) {}
+            throw AssertionError("task save should fail")
+        } catch (_: IllegalStateException) {
+        }
+        assertNull(store.getTask("t-fail"))
+        assertNull(db.misc().event("cal-t-fail"))
+    }
+
+    @Test
+    fun renamingAFieldDoesNotChangeOtherEntityTypes() = runBlocking {
+        val workspace = store.installWorkspace(shell("realtor", 1), "Realtor")
+        val invoice = EntityTypeDef(
+            key = "invoice",
+            label = L10n("Invoice", "Счёт", "חשבונית"),
+            fields = listOf(FieldDef("sqm", L10n("Area", "Площадь", "שטח"), "text")),
+        )
+        store.saveEntity(workspace, "p1", propertyType(), "Flat", null, mapOf("sqm" to "78"), emptyMap())
+        store.saveEntity(workspace, "i1", invoice, "Bill", null, mapOf("sqm" to "12"), emptyMap())
+        store.upgradeWorkspace(
+            workspace,
+            shell("realtor", 2, listOf(MigrationDef(1, 2, renames = listOf(RenameDef("property", "sqm", "area"))))),
+        )
+        assertEquals("78", store.entityFields("p1")["area"])
+        assertNull(store.entityFields("p1")["sqm"])
+        assertEquals("12", store.entityFields("i1")["sqm"])
+        assertNull(store.entityFields("i1")["area"])
+    }
+
+    @Test
     fun templateUpgradeAppliesEachStepAndAGapChangesNothing() = runBlocking {
         val workspace = store.installWorkspace(shell("realtor", 1), "Realtor")
         store.saveEntity(workspace, "p1", propertyType(), "Flat", null, mapOf("sqm" to "78", "place" to "Haifa, Herzl"), emptyMap())
