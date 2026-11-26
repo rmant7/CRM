@@ -7,9 +7,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.security.SecureRandom
 import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -226,7 +224,7 @@ object BackupArchive {
     private fun readCapped(input: java.io.InputStream, cap: Int): String {
         val out = java.io.ByteArrayOutputStream()
         copyCapped(input, out, cap.toLong())
-        return out.toString(Charsets.UTF_8)
+        return String(out.toByteArray(), Charsets.UTF_8)
     }
 
     private fun copyCapped(input: java.io.InputStream, output: java.io.OutputStream, cap: Long = zipLimits.maxEntryBytes): Long {
@@ -321,8 +319,7 @@ object BackupArchive {
     }
 
     private fun key(password: String, salt: ByteArray, iterations: Int = KDF_ITERATIONS): SecretKeySpec {
-        val spec = PBEKeySpec(password.toCharArray(), salt, iterations, KEY_BITS)
-        val encoded = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        val encoded = Pbkdf2.hmacSha256(password.encodeToByteArray(), salt, iterations, KEY_BITS / 8)
         return SecretKeySpec(encoded, "AES")
     }
 

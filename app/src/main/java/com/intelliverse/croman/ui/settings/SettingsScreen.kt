@@ -14,6 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -21,6 +26,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +49,7 @@ import com.intelliverse.croman.data.repo.loadRealtorSample
 import com.intelliverse.croman.data.template.TemplateCatalog
 import com.intelliverse.croman.di.LocalAppContainer
 import com.intelliverse.croman.domain.AppLanguage
+import com.intelliverse.croman.domain.CategoryCatalog
 import com.intelliverse.croman.domain.MoneyText
 import com.intelliverse.croman.domain.TemplateFile
 import com.intelliverse.croman.ui.components.CrmDropdown
@@ -135,14 +142,15 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
             }
             SectionTitle(stringResource(R.string.workspaces))
             workspaces.forEach { ws ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).clickable { scope.launch { container.settings.setWorkspace(ws.id) } }, verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(ws.id == workspaceId, { scope.launch { container.settings.setWorkspace(ws.id) } })
-                        Text(ws.name + " · " + ws.templateId)
-                    }
-                    TextButton(onClick = { renameId = ws.id; nameDraft = ws.name; nameError = null }) { Text(stringResource(R.string.workspace_rename)) }
-                    TextButton(onClick = { deleteId = ws.id }) { Text(stringResource(R.string.workspace_delete)) }
-                }
+                val category = CategoryCatalog.byId(ws.category) ?: CategoryCatalog.byTemplate(ws.templateId)
+                WorkspaceRow(
+                    name = ws.name,
+                    category = category?.let { l10n(it.name) }.orEmpty(),
+                    selected = ws.id == workspaceId,
+                    onSelect = { scope.launch { container.settings.setWorkspace(ws.id) } },
+                    onRename = { renameId = ws.id; nameDraft = ws.name; nameError = null },
+                    onDelete = { deleteId = ws.id },
+                )
             }
             com.intelliverse.croman.domain.CategoryCatalog.all.forEach { category ->
                 val templateName = l10n(category.name)
@@ -346,6 +354,45 @@ private suspend fun importArchive(
         container.restartProcess()
     } else {
         snackbar.showSnackbar(failed)
+    }
+}
+
+@Composable
+internal fun WorkspaceRow(
+    name: String,
+    category: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onNameLines: (Int) -> Unit = {},
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected, onSelect)
+        Column(Modifier.weight(1f).clickable(onClick = onSelect)) {
+            Text(
+                name,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+                onTextLayout = { onNameLines(it.lineCount) },
+            )
+            if (category.isNotBlank()) {
+                Text(
+                    category,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(onClick = onRename) {
+            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.workspace_rename))
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.workspace_delete))
+        }
     }
 }
 

@@ -147,7 +147,9 @@ fun EntityListScreen(workspaceId: String, template: TemplateFile, typeKey: Strin
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(row.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     if (row.badge.isNotBlank()) Badge(optionLabel(type, row.badge))
-                                    else if (row.stageKey != null) Badge(type.pipeline?.stages?.firstOrNull { it.key == row.stageKey }?.label?.let { l10n(it) } ?: row.stageKey)
+                                    else if (row.stageKey != null) {
+                                        type.pipeline?.stages?.firstOrNull { it.key == row.stageKey }?.label?.let { Badge(l10n(it)) }
+                                    }
                                 }
                                 if (row.moneyAmount > 0) Text(MoneyText.format(row.moneyAmount, row.moneyCurrency, appLocale()) ?: stringResource(R.string.price_on_request), color = MaterialTheme.colorScheme.primary)
                                 if (row.subtitle.isNotBlank()) Text(row.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
