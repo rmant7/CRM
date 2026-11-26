@@ -70,6 +70,8 @@ jobs:
       - name: Test
         run: |
           set -euo pipefail
+          python3 scripts/ftl-matrix.py --self-check
+          python3 scripts/ftl_outcome.py --self-check
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           ./gradlew test lintDebug --stacktrace --no-daemon
 
@@ -86,40 +88,100 @@ jobs:
           FIREBASE_PROJECT_ID_VAR: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          PROJECT="${FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID_VAR:-}}"
-          if [ -z "${GCP_SA_KEY}" ] || [ -z "$PROJECT" ]; then
-            echo "Firebase Test Lab skipped: set secret GCP_SA_KEY and secret or variable FIREBASE_PROJECT_ID to enable."
+          STATUS="$GITHUB_WORKSPACE/ftl-status.txt"
+          SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
+          record() {
+            printf '%s\n' "$1" | tee "$STATUS" >> "$SUMMARY"
+          }
+          finish_skip() {
+            record "Test Lab: not run ($1)"
             exit 0
+          }
+          trap 'rm -f "$RUNNER_TEMP/gcp-sa.json"' EXIT
+          PROJECT="${FIREBASE_PROJECT_ID:-${FIREBASE_PROJECT_ID_VAR:-}}"
+          if [ -z "${GCP_SA_KEY:-}" ] || [ -z "$PROJECT" ]; then
+            finish_skip "secrets GCP_SA_KEY and FIREBASE_PROJECT_ID are not set"
           fi
           echo "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-sa.json"
           if ! command -v gcloud >/dev/null 2>&1; then
             curl -fsSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz | tar -xz -C "$RUNNER_TEMP"
             export PATH="$RUNNER_TEMP/google-cloud-sdk/bin:$PATH"
           fi
-          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-sa.json"
-          gcloud config set project "$PROJECT"
-          gcloud firebase test android models list --format=json > "$RUNNER_TEMP/ftl-models.json"
-          python3 scripts/ftl-matrix.py "$RUNNER_TEMP/ftl-models.json"
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          TEST_APK="app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          mapfile -t INSTR < "$RUNNER_TEMP/ftl-instrumentation.txt"
-          INST_ARGS=()
-          for device in "${INSTR[@]}"; do INST_ARGS+=(--device "$device"); done
-          gcloud firebase test android run \
-            --type instrumentation \
-            --app "$APK" \
-            --test "$TEST_APK" \
-            "${INST_ARGS[@]}" \
-            --timeout 20m
+          if ! gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-sa.json" >"$RUNNER_TEMP/ftl-auth.log" 2>&1; then
+            cat "$RUNNER_TEMP/ftl-auth.log"
+            finish_skip "$(python3 scripts/ftl_outcome.py 1 "$RUNNER_TEMP/ftl-auth.log" | cut -f2-)"
+          fi
+          if ! gcloud config set project "$PROJECT" >"$RUNNER_TEMP/ftl-project.log" 2>&1; then
+            cat "$RUNNER_TEMP/ftl-project.log"
+            finish_skip "$(python3 scripts/ftl_outcome.py 1 "$RUNNER_TEMP/ftl-project.log" | cut -f2-)"
+          fi
+          BUCKET="gs://${PROJECT}-testlab"
+          if ! gcloud storage buckets create "$BUCKET" --location=us-central1 --uniform-bucket-level-access --project="$PROJECT" >"$RUNNER_TEMP/ftl-bucket.log" 2>&1; then
+            if grep -Eqi 'already exists|HTTPError 409|409:' "$RUNNER_TEMP/ftl-bucket.log"; then
+              echo "Results bucket $BUCKET already exists."
+            else
+              cat "$RUNNER_TEMP/ftl-bucket.log"
+              finish_skip "$(python3 scripts/ftl_outcome.py 1 "$RUNNER_TEMP/ftl-bucket.log" | cut -f2-)"
+            fi
+          else
+            echo "Created results bucket $BUCKET."
+          fi
+          printf '%s\n' '{"rule":[{"action":{"type":"Delete"},"condition":{"age":30}}]}' > "$RUNNER_TEMP/ftl-lifecycle.json"
+          if ! gcloud storage buckets update "$BUCKET" --lifecycle-file="$RUNNER_TEMP/ftl-lifecycle.json" >"$RUNNER_TEMP/ftl-lifecycle.log" 2>&1; then
+            echo "Could not set the 30-day delete rule. Continuing."
+            cat "$RUNNER_TEMP/ftl-lifecycle.log"
+          fi
+          if ! gcloud firebase test android models list --format=json >"$RUNNER_TEMP/ftl-models.json" 2>"$RUNNER_TEMP/ftl-models.err"; then
+            cat "$RUNNER_TEMP/ftl-models.err"
+            finish_skip "$(python3 scripts/ftl_outcome.py 1 "$RUNNER_TEMP/ftl-models.err" | cut -f2-)"
+          fi
+          python3 scripts/ftl-matrix.py "$RUNNER_TEMP/ftl-models.json" | tee -a "$SUMMARY"
           mapfile -t ROBO < "$RUNNER_TEMP/ftl-devices.txt"
           ROBO_ARGS=()
-          for device in "${ROBO[@]}"; do ROBO_ARGS+=(--device "$device"); done
+          DEVICES=0
+          for device in "${ROBO[@]}"; do
+            [ -z "$device" ] && continue
+            ROBO_ARGS+=(--device "$device")
+            DEVICES=$((DEVICES + 1))
+          done
+          if [ "$DEVICES" -eq 0 ] || [ "$DEVICES" -gt 9 ]; then
+            finish_skip "device matrix had ${DEVICES} runs; the Spark cap for this workflow is 9"
+          fi
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          # Nine Robo runs stay inside the Spark daily quota. API 23 stays on Robolectric.
+          set +e
           gcloud firebase test android run \
             --type robo \
             --app "$APK" \
             "${ROBO_ARGS[@]}" \
-            --timeout 15m
-          rm -f "$RUNNER_TEMP/gcp-sa.json"
+            --results-bucket="$BUCKET" \
+            --results-dir="${GITHUB_RUN_ID}/robo" \
+            --timeout 15m \
+            >"$RUNNER_TEMP/ftl-robo.log" 2>&1
+          CODE=$?
+          set -e
+          cat "$RUNNER_TEMP/ftl-robo.log"
+          OUTCOME="$(python3 scripts/ftl_outcome.py "$CODE" "$RUNNER_TEMP/ftl-robo.log")"
+          KIND="${OUTCOME%%$'\t'*}"
+          DETAIL="${OUTCOME#*$'\t'}"
+          grep -oE 'https://console\.firebase\.google\.com[^[:space:]]+' "$RUNNER_TEMP/ftl-robo.log" | tr -d '[]' | head -n 1 >> "$SUMMARY" || true
+          grep -E 'Passed|Failed|Skipped|Inconclusive|OUTCOME' "$RUNNER_TEMP/ftl-robo.log" >> "$SUMMARY" || true
+          if [ "$KIND" = "fail" ]; then
+            record "Test Lab: failed (${DETAIL})"
+            exit 1
+          fi
+          if [ "$KIND" = "skip" ]; then
+            finish_skip "$DETAIL"
+          fi
+          mkdir -p ftl-shots
+          gcloud storage ls -r "${BUCKET}/${GITHUB_RUN_ID}/robo/**" >"$RUNNER_TEMP/ftl-objects.txt" 2>/dev/null || true
+          n=0
+          while IFS= read -r object; do
+            [ -z "$object" ] && continue
+            n=$((n + 1))
+            gcloud storage cp "$object" "ftl-shots/ftl-screenshot-${n}.png" || true
+          done < <(python3 scripts/ftl_outcome.py pick-shots "$RUNNER_TEMP/ftl-objects.txt")
+          record "Test Lab: passed (${DEVICES} virtual devices, results ${BUCKET}/${GITHUB_RUN_ID}/robo)"
 
       - name: Prepare release asset
         id: apk
@@ -142,27 +204,40 @@ jobs:
           RELEASE_SHA: ${{ steps.apk.outputs.sha }}
         run: |
           set -euo pipefail
-          NOTES=$(cat <<EOF
-          CRoMan ${RELEASE_TAG} — offline CRM. Signed with a stable test key. This build does not install over 0.2.0 or 0.2.1; uninstall those once. Later builds that use the same key update in place. Mantel CRM 0.1 stays a separate app.
+          export FTL_NOTE="Test Lab: not run (no status was recorded)"
+          if [ -f ftl-status.txt ]; then
+            FTL_NOTE=$(tr '\n' ' ' < ftl-status.txt | sed 's/[[:space:]]*$//')
+            export FTL_NOTE
+          fi
+          NOTES=$(python3 - <<'PY'
+          import os
+          note = os.environ["FTL_NOTE"]
+          tag = os.environ["RELEASE_TAG"]
+          sha = os.environ["RELEASE_SHA"]
+          print(f"""CRoMan {tag} — offline CRM. Signed with a stable test key. This build does not install over 0.2.0 or 0.2.1; uninstall those once. Later builds that use the same key update in place. Mantel CRM 0.1 stays a separate app.
 
           The APK is debug-signed so the build does not need repository secrets. Android 8.0 or newer. Allow installation from this source, then install.
 
-          SHA-256: ${RELEASE_SHA}
+          SHA-256: {sha}
+
+          {note}
 
           Data stays on the device: no account and no network.
 
           ---
 
-          CRoMan ${RELEASE_TAG} — офлайн CRM. Подпись стабильным тестовым ключом. Эта сборка не ставится поверх 0.2.0 и 0.2.1: их нужно удалить один раз. Следующие сборки с тем же ключом обновляются на месте. Версия 0.1 остаётся отдельным приложением.
+          CRoMan {tag} — офлайн CRM. Подпись стабильным тестовым ключом. Эта сборка не ставится поверх 0.2.0 и 0.2.1: их нужно удалить один раз. Следующие сборки с тем же ключом обновляются на месте. Версия 0.1 остаётся отдельным приложением.
 
           APK подписан отладочным ключом, секреты репозитория не нужны. Android 8.0+. Разрешите установку из этого источника.
 
-          SHA-256: ${RELEASE_SHA}
+          SHA-256: {sha}
+
+          {note}
 
           Данные только на устройстве: без аккаунта и без сети.
-          EOF
+          """)
+          PY
           )
-          NOTES=$(printf '%s\n' "$NOTES" | sed 's/^[[:space:]]*//')
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "croman-${RELEASE_TAG}.apk" --clobber
             gh release edit "$RELEASE_TAG" --notes "$NOTES" --title "$RELEASE_TAG"
@@ -171,6 +246,9 @@ jobs:
               --title "$RELEASE_TAG" \
               --notes "$NOTES" \
               --target "${GITHUB_SHA}"
+          fi
+          if compgen -G "ftl-shots/*.png" > /dev/null; then
+            gh release upload "$RELEASE_TAG" ftl-shots/*.png --clobber
           fi
 
       - name: Delete older releases, tags, and actions artifacts

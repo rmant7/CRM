@@ -34,6 +34,8 @@ Manufacturing, wholesale, logistics, HR, and NGOs wait for the server/ERP stage.
 
 Local only, then backup (done in 0.2), then merge of two devices' backups (done in 0.3.1, the precursor to sync), then one Android device as a LAN server, then cloud/server versions.
 
+Firebase Test Lab is deprecated and shuts down on 30 September 2027. Move device checks to Google Cloud Developer Device Platform before then.
+
 ---
 
 # Дорожная карта CRoMan
@@ -71,3 +73,5 @@ CRoMan — мобильная CRM для независимых специали
 ## Инфраструктура
 
 Только локально, затем резервная копия (сделано в 0.2), затем слияние копий двух устройств (сделано в 0.3.1, подготовка к синхронизации), затем один Android как сервер в локальной сети, затем облачные / серверные версии.
+
+Firebase Test Lab устаревает и будет отключён 30 сентября 2027 года. До этой даты проверки на устройствах нужно перенести на Google Cloud Developer Device Platform.
