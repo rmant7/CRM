@@ -61,6 +61,7 @@ import com.intelliverse.croman.ui.components.l10n
 import com.intelliverse.croman.ui.format.AppLocales
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -104,8 +105,13 @@ fun SettingsScreen(workspaceId: String, template: TemplateFile, onBack: () -> Un
             val success = withContext(Dispatchers.IO) {
                 runCatching {
                     container.checkpoint()
+                    val copy = File(context.cacheDir, "croman-export-src.db")
+                    container.databaseFile().copyTo(copy, overwrite = true)
+                    val demo = container.settings.demoIds.first().map { it.substringAfter(':') }.toSet()
+                    com.intelliverse.croman.data.demo.DemoBackup.omit(copy, demo)
                     val tmp = File(context.cacheDir, "croman-export.bin")
-                    BackupArchive.export(tmp, container.databaseFile(), container.photos.directory(), System.currentTimeMillis(), secret)
+                    BackupArchive.export(tmp, copy, container.photos.directory(), System.currentTimeMillis(), secret)
+                    copy.delete()
                     BackupTransfer.copyAndVerify(
                         tmp,
                         { context.contentResolver.openOutputStream(uri) },

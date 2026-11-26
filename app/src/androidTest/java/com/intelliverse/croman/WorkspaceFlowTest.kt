@@ -9,12 +9,16 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.template.TemplateCatalog
+import com.intelliverse.croman.data.demo.DemoSamples
 import com.intelliverse.croman.domain.CategoryCatalog
 import com.intelliverse.croman.domain.L10n
+import com.intelliverse.croman.domain.Onboarding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.FixMethodOrder
@@ -31,17 +35,28 @@ class WorkspaceFlowTest {
 
     @Test
     fun test01_pickerCreatesARealEstateWorkspace() {
-        rule.waitUntil(30_000) { categoryVisible() }
-        DeviceShots.save("${localeArg()}-picker")
-        val realEstate = CategoryCatalog.byId("real_estate")!!
-        rule.onNodeWithText(visible(realEstate.name)).performClick()
-        rule.onNodeWithText(rule.activity.getString(R.string.save)).performClick()
+        val phrase = Onboarding.offers(setOf("realtor")).single().phrase
+        rule.waitUntil(30_000) { visible(phrase).isNotEmpty() }
+        DeviceShots.save("${localeArg()}-onboarding")
+        rule.onNodeWithText(visible(phrase)).performScrollTo().performClick()
         val greeting = rule.activity.getString(R.string.greeting)
+        val addFirst = rule.activity.getString(R.string.add_first_client)
         rule.waitUntil(30_000) {
-            rule.onAllNodesWithText(greeting).fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithText(greeting).fetchSemanticsNodes().isNotEmpty() &&
+                rule.onAllNodesWithText(addFirst).fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText(greeting).assertIsDisplayed()
+        rule.onNodeWithText(addFirst).assertIsDisplayed()
         DeviceShots.save("${localeArg()}-home")
+        val app = rule.activity.application as CromanApp
+        val workspaceId = runBlocking(Dispatchers.IO) { app.container.store.observeWorkspaces().first().single().id }
+        val template = TemplateCatalog.load(rule.activity, "realtor")
+        runBlocking(Dispatchers.IO) {
+            val created = DemoSamples.load(app.container.store, workspaceId, template)
+            app.container.settings.rememberDemo(workspaceId, created)
+        }
+        val badge = rule.activity.getString(R.string.demo_badge)
+        rule.waitUntil(30_000) { rule.onAllNodesWithText(badge).fetchSemanticsNodes().isNotEmpty() }
+        DeviceShots.save("${localeArg()}-demo")
         assertDirection()
     }
 
@@ -73,10 +88,12 @@ class WorkspaceFlowTest {
         val id = runBlocking(Dispatchers.IO) { app.container.store.installWorkspace(template, name) }
         runBlocking(Dispatchers.IO) { app.container.settings.setWorkspace(id) }
         val settings = rule.activity.getString(R.string.cd_settings)
+        val settingsLabel = rule.activity.getString(R.string.settings)
         rule.waitUntil(30_000) {
             rule.onAllNodes(hasContentDescription(settings)).fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithContentDescription(settings).performClick()
+        rule.onNodeWithText(settingsLabel).performClick()
         rule.waitUntil(30_000) {
             rule.onAllNodesWithText(name).fetchSemanticsNodes().isNotEmpty()
         }
@@ -87,15 +104,9 @@ class WorkspaceFlowTest {
         DeviceShots.save("${localeArg()}-settings")
     }
 
-    private fun categoryVisible(): Boolean = CategoryCatalog.all.any { category ->
-        listOf(category.name.en, category.name.ru, category.name.he).any { text ->
-            rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-        }
-    }
-
-    private fun visible(name: L10n): String = listOf(name.en, name.ru, name.he).first { text ->
+    private fun visible(name: L10n): String = listOf(name.en, name.ru, name.he).firstOrNull { text ->
         rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-    }
+    }.orEmpty()
 
     private fun localeArg(): String =
         InstrumentationRegistry.getArguments().getString("locale")?.lowercase() ?: "en"

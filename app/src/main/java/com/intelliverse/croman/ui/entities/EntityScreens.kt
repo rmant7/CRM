@@ -144,15 +144,13 @@ fun EntityListScreen(workspaceId: String, template: TemplateFile, typeKey: Strin
                     items(data, key = { it.id }) { row ->
                         Card(onClick = { onOpen(row.id) }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(row.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (row.badge.isNotBlank()) Badge(optionLabel(type, row.badge))
-                                    else if (row.stageKey != null) {
-                                        type.pipeline?.stages?.firstOrNull { it.key == row.stageKey }?.label?.let { Badge(l10n(it)) }
-                                    }
+                                Text(row.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val status = when {
+                                    row.subtitle.isNotBlank() -> row.subtitle
+                                    row.stageKey != null -> type.pipeline?.stages?.firstOrNull { it.key == row.stageKey }?.label?.let { l10n(it) }.orEmpty()
+                                    else -> ""
                                 }
-                                if (row.moneyAmount > 0) Text(MoneyText.format(row.moneyAmount, row.moneyCurrency, appLocale()) ?: stringResource(R.string.price_on_request), color = MaterialTheme.colorScheme.primary)
-                                if (row.subtitle.isNotBlank()) Text(row.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

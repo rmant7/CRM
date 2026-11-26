@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.3.2 runs on Android 6.0 through Android 16 and can merge a backup from another device. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.4.0 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -58,7 +58,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.3.2 работает с Android 6.0 по Android 16. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.4.0 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 

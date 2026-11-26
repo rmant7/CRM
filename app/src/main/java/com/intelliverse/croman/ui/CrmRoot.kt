@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
@@ -15,6 +16,13 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.intelliverse.croman.R
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +74,7 @@ object Routes {
     const val TASKS = "tasks"
     const val TASK_EDIT = "task_edit?id={id}&contactId={contactId}&entityId={entityId}"
     const val CATALOG = "catalog"
+    const val MORE = "more"
     const val SETTINGS = "settings"
 
     fun contact(id: String) = "contact/$id"
@@ -94,13 +103,14 @@ fun CromanRoot(initialTaskId: String?) {
             return@CompositionLocalProvider
         }
         if (workspace == null || template == null) {
-            CategoryPicker()
+            OnboardingScreen()
             return@CompositionLocalProvider
         }
         val nav = rememberNavController()
         val backStack by nav.currentBackStackEntryAsState()
         val route = backStack?.destination?.route
-        val tabs = template.menu.map { it.route }.take(5)
+        val primary = template.menu.take(3)
+        val overflow = template.menu.drop(3)
         LaunchedEffect(initialTaskId) {
             val id = initialTaskId ?: return@LaunchedEffect
             nav.navigate(Routes.taskEdit(id)) { launchSingleTop = true }
@@ -108,18 +118,11 @@ fun CromanRoot(initialTaskId: String?) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                if (route in setOf(Routes.HOME, Routes.CONTACTS, Routes.TASKS, Routes.CATALOG) || route?.startsWith("entities/") == true) {
+                if (route in setOf(Routes.HOME, Routes.CONTACTS, Routes.TASKS, Routes.CATALOG, Routes.MORE) || route?.startsWith("entities/") == true) {
                     NavigationBar {
-                        template.menu.filter { it.route in tabs || (route?.startsWith("entities/") == true && it.route.startsWith("entities:")) }.take(5).forEach { item ->
-                            val target = when {
-                                item.route == "home" -> Routes.HOME
-                                item.route == "contacts" -> Routes.CONTACTS
-                                item.route == "tasks" -> Routes.TASKS
-                                item.route == "catalog" -> Routes.CATALOG
-                                item.route.startsWith("entities:") -> Routes.entities(item.route.substringAfter(":"))
-                                else -> Routes.HOME
-                            }
-                            val selected = route == target || (item.route.startsWith("entities:") && route == Routes.entities(item.route.substringAfter(":")))
+                        primary.forEach { item ->
+                            val target = item.destination()
+                            val selected = route == target
                             NavigationBarItem(
                                 selected = selected,
                                 onClick = { nav.goTop(target) },
@@ -130,11 +133,19 @@ fun CromanRoot(initialTaskId: String?) {
                                         l10n(item.label),
                                         maxLines = NavLabels.MAX_LINES,
                                         softWrap = true,
-                                        overflow = TextOverflow.Visible,
+                                        overflow = TextOverflow.Ellipsis,
                                         textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp),
                                     )
                                 },
+                            )
+                        }
+                        if (overflow.isNotEmpty()) {
+                            NavigationBarItem(
+                                selected = route == Routes.MORE || overflow.any { route == it.destination() },
+                                onClick = { nav.goTop(Routes.MORE) },
+                                icon = { Icon(Icons.Filled.MoreHoriz, contentDescription = stringResource(R.string.cd_more)) },
+                                label = { Text(stringResource(R.string.nav_more), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             )
                         }
                     }
@@ -146,7 +157,7 @@ fun CromanRoot(initialTaskId: String?) {
                     HomeScreen(workspace.id, template, { nav.navigate(Routes.SETTINGS) }, { nav.goTop(it) }, { nav.navigate(Routes.entity(it)) }, { nav.navigate(Routes.taskEdit(it)) })
                 }
                 composable(Routes.CONTACTS) {
-                    ContactsScreen(workspace.id, template, { nav.navigate(Routes.contact(it)) }, { nav.navigate(Routes.contactEdit()) })
+                    ContactsScreen(workspace.id, template, { nav.navigate(Routes.contact(it)) }, { nav.navigate(Routes.contactEdit()) }, com.intelliverse.croman.data.demo.DemoIds.idsFor(workspace.id, container.settings.demoIds.collectAsStateWithLifecycle(initialValue = emptySet()).value))
                 }
                 composable(Routes.CONTACT, listOf(navArgument("id") { type = NavType.StringType })) { entry ->
                     ContactDetailScreen(
@@ -208,6 +219,11 @@ fun CromanRoot(initialTaskId: String?) {
                     )
                 }
                 composable(Routes.CATALOG) { CatalogScreen(workspace.id) }
+                composable(Routes.MORE) {
+                    MoreScreen(overflow.map { l10n(it.label) to it.destination() } + (stringResource(R.string.settings) to Routes.SETTINGS)) {
+                        nav.navigate(it)
+                    }
+                }
                 composable(Routes.SETTINGS) { SettingsScreen(workspace.id, template, { nav.popBackStack() }) }
             }
         }
@@ -221,6 +237,30 @@ private fun NavHostController.goTop(route: String) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+private fun com.intelliverse.croman.domain.MenuItem.destination(): String = when {
+    route == "home" -> Routes.HOME
+    route == "contacts" -> Routes.CONTACTS
+    route == "tasks" -> Routes.TASKS
+    route == "catalog" -> Routes.CATALOG
+    route.startsWith("entities:") -> Routes.entities(route.substringAfter(":"))
+    else -> Routes.HOME
+}
+
+@Composable
+private fun MoreScreen(items: List<Pair<String, String>>, onOpen: (String) -> Unit) {
+    com.intelliverse.croman.ui.components.CrmScaffold(stringResource(R.string.nav_more)) { padding ->
+        Column(Modifier.padding(padding).padding(horizontal = 8.dp, vertical = 12.dp)) {
+            items.forEach { (label, route) ->
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.fillMaxWidth().clickable { onOpen(route) }.padding(horizontal = 16.dp, vertical = 18.dp),
+                )
+            }
+        }
     }
 }
 

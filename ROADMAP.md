@@ -36,6 +36,8 @@ Local only, then backup (done in 0.2), then merge of two devices' backups (done 
 
 Release device checks run on GitHub-hosted emulators (API 23, 30, and 36). Firebase Test Lab stays optional: there is no Blaze plan, and it is skipped unless it can actually start. Test Lab is deprecated and shuts down on 30 September 2027.
 
+The interface simplifies discovery, not features. The first screen asks what the person does and opens a working workspace. Extra actions stay available in More and in settings. A later check is to sit with five people who have never used a CRM and watch whether they can add a first client without help.
+
 ---
 
 # Дорожная карта CRoMan
@@ -75,3 +77,5 @@ CRoMan — мобильная CRM для независимых специали
 Только локально, затем резервная копия (сделано в 0.2), затем слияние копий двух устройств (сделано в 0.3.1, подготовка к синхронизации), затем один Android как сервер в локальной сети, затем облачные / серверные версии.
 
 Проверки на устройствах для выпуска идут на эмуляторах GitHub (API 23, 30 и 36). Firebase Test Lab остаётся необязательным: плана Blaze нет, и он пропускается, если не может стартовать. Test Lab устаревает и будет отключён 30 сентября 2027 года.
+
+Интерфейс упрощает первый шаг, а не возможности. Первый экран спрашивает, чем человек занимается, и открывает рабочее пространство. Остальные действия остаются в «Ещё» и в настройках. Позже нужно посидеть с пятью людьми, которые никогда не пользовались CRM, и посмотреть, добавят ли они первого клиента без подсказок.

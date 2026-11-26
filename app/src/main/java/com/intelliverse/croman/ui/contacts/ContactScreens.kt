@@ -2,6 +2,7 @@ package com.intelliverse.croman.ui.contacts
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -68,7 +69,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
-fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String) -> Unit, onCreate: () -> Unit) {
+fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String) -> Unit, onCreate: () -> Unit, demoIds: Set<String> = emptySet()) {
     val store = LocalAppContainer.current.store
     val profile = template.contactProfile
     var query by remember { mutableStateOf("") }
@@ -78,13 +79,19 @@ fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String)
     CrmScaffold(title, floatingActionButton = { AddFab(onCreate) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             SearchField(query, { query = it }, Modifier.padding(16.dp))
-            val kindOptions = profile?.kinds?.map { it.value }.orEmpty()
-            if (kindOptions.isNotEmpty()) {
-                ChipRow(listOf("all") + kindOptions, kind?.name?.lowercase() ?: "all", { option ->
-                    if (option == "all") stringResource(R.string.filter_all)
-                    else profile?.kinds?.firstOrNull { it.value.equals(option, true) }?.label?.let { l10n(it) } ?: option
-                }) { selected ->
-                    kind = if (selected == "all") null else runCatching { ContactKind.valueOf(selected.uppercase()) }.getOrNull()
+            val kinds = profile?.kinds.orEmpty()
+            if (kinds.isNotEmpty()) {
+                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    kinds.forEach { option ->
+                        val selected = kind?.name.equals(option.value, true)
+                        Text(
+                            l10n(option.label),
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clickable {
+                                kind = if (selected) null else runCatching { ContactKind.valueOf(option.value.uppercase()) }.getOrNull()
+                            },
+                        )
+                    }
                 }
             }
             val data = rows
@@ -100,9 +107,11 @@ fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String)
                     items(data, key = { it.id }) { contact ->
                         Card(onClick = { onOpen(contact.id) }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
                             Column(Modifier.padding(14.dp)) {
-                                Text(contact.fullName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (contact.phone.isNotBlank()) Text(contact.phone, style = TextStyle(textDirection = TextDirection.Ltr))
-                                Text(stringResource(contact.kind.label()), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row {
+                                    Text(contact.fullName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (contact.id in demoIds) Text(stringResource(R.string.demo_badge), color = MaterialTheme.colorScheme.primary)
+                                }
+                                if (contact.phone.isNotBlank()) Text(contact.phone, style = TextStyle(textDirection = TextDirection.Ltr), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
