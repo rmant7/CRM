@@ -63,6 +63,35 @@ class WorkspaceRowTest {
         assertNameLines(1.3f, LayoutDirection.Rtl, "הוראה וחינוך")
     }
 
+    @Test
+    @Config(sdk = [23], qualifiers = "w360dp-h640dp")
+    fun englishNameIsWideAndVisible() = assertNameWidth("Tutoring and education", LayoutDirection.Ltr)
+
+    @Test
+    @Config(sdk = [23], qualifiers = "w360dp-h640dp")
+    fun russianNameIsWideAndVisible() = assertNameWidth("Репетиторство и обучение", LayoutDirection.Ltr)
+
+    @Test
+    @Config(sdk = [23], qualifiers = "w360dp-h640dp")
+    fun hebrewNameIsWideAndVisible() = assertNameWidth("הוראה וחינוך", LayoutDirection.Rtl)
+
+    private fun assertNameWidth(name: String, direction: LayoutDirection) {
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(density = 1f, fontScale = 1f),
+                LocalLayoutDirection provides direction,
+            ) {
+                Box(Modifier.width(360.dp)) {
+                    WorkspaceRow(name, "Category", false, {}, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithText(name, useUnmergedTree = true).assertIsDisplayed()
+        val width = compose.onNodeWithText(name, useUnmergedTree = true).fetchSemanticsNode().size.width
+        val screen = with(compose.density) { 360.dp.roundToPx() }
+        assertTrue("$name width $width screen $screen", width >= (screen * 0.6f).toInt())
+    }
+
     private fun assertNameLines(scale: Float, direction: LayoutDirection, name: String) {
         var lines = 99
         compose.setContent {

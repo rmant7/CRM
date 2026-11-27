@@ -161,6 +161,7 @@ data class Contact(
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long? = null,
+    val doNotContact: Boolean = false,
 )
 
 data class EntityRow(

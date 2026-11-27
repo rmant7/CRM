@@ -79,6 +79,29 @@ fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String)
     CrmScaffold(title, floatingActionButton = { AddFab(onCreate) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             SearchField(query, { query = it }, Modifier.padding(16.dp))
+            if (template.id == com.intelliverse.croman.domain.ConsultationCard.TYPE) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val scope = rememberCoroutineScope()
+                val language = com.intelliverse.croman.ui.theme.LocalLanguage.current
+                TextButton(onClick = {
+                    scope.launch {
+                        val headers = listOf(
+                            com.intelliverse.croman.domain.L10n("Name", "Имя", "שם").text(language),
+                            com.intelliverse.croman.domain.L10n("Reply", "Ответ", "תגובה").text(language),
+                            com.intelliverse.croman.domain.L10n("Do not contact", "Не писать", "לא לפנות").text(language),
+                        )
+                        val lines = rows.orEmpty().map { contact ->
+                            val extras = store.contactExtras(contact.id)
+                            listOf(contact.fullName, extras["reply_class"].orEmpty(), if (contact.doNotContact) "yes" else "no")
+                        }
+                        com.intelliverse.croman.ui.entities.shareCsv(
+                            context,
+                            "outreach.csv",
+                            com.intelliverse.croman.domain.CsvExport.document(headers, lines),
+                        )
+                    }
+                }, modifier = Modifier.padding(horizontal = 8.dp)) { Text(stringResource(R.string.export_csv)) }
+            }
             val kinds = profile?.kinds.orEmpty()
             if (kinds.isNotEmpty()) {
                 Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -112,6 +135,7 @@ fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String)
                                     if (contact.id in demoIds) Text(stringResource(R.string.demo_badge), color = MaterialTheme.colorScheme.primary)
                                 }
                                 if (contact.phone.isNotBlank()) Text(contact.phone, style = TextStyle(textDirection = TextDirection.Ltr), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (contact.doNotContact) com.intelliverse.croman.ui.entities.DoNotContactMark()
                             }
                         }
                     }
@@ -299,7 +323,15 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
         TextButton(onClick = {
             if (name.isBlank()) { error = true; return@TextButton }
             scope.launch {
-                store.saveContact(Contact(id, workspaceId, name, phone, email, company, kind, source, note, System.currentTimeMillis(), System.currentTimeMillis()))
+                val keepStop = store.getContact(id)?.doNotContact == true ||
+                    com.intelliverse.croman.domain.ReplyClass.isStop(extras["reply_class"])
+                store.saveContact(
+                    Contact(
+                        id, workspaceId, name, phone, email, company, kind, source, note,
+                        System.currentTimeMillis(), System.currentTimeMillis(),
+                        doNotContact = keepStop,
+                    ),
+                )
                 val extraKeys = template.contactProfile?.fields?.map { it.key }?.filter { it !in CORE_CONTACT_KEYS }.orEmpty()
                 if (extraKeys.isNotEmpty()) store.saveContactExtras(workspaceId, id, extras.filterKeys { it in extraKeys })
                 if (contactId == null) store.addActivity(workspaceId, "note", "created", id, null)
@@ -320,6 +352,12 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
             if (show("note")) item { OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_note)) }, minLines = 2) }
             val extraFields = template.contactProfile?.fields?.filter { it.key !in CORE_CONTACT_KEYS }.orEmpty()
             items(extraFields, key = { it.key }) { field ->
+                if (field.key == com.intelliverse.croman.domain.ConsultationCard.REPLY) {
+                    com.intelliverse.croman.ui.entities.OutreachReply(extras[field.key].orEmpty()) {
+                        extras = extras + (field.key to it)
+                    }
+                    return@items
+                }
                 OutlinedTextField(
                     extras[field.key].orEmpty(),
                     { extras = extras + (field.key to it) },

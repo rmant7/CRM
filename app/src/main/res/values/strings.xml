@@ -161,6 +161,11 @@
     <string name="add_own_client">Add your own client</string>
     <string name="add_client">Add client</string>
     <string name="demo_numbers">These numbers are from the demo.</string>
+    <string name="section_filled">filled</string>
+    <string name="section_empty">empty</string>
+    <string name="do_not_contact">Do not contact</string>
+    <string name="export_csv">Export CSV</string>
+    <string name="reply_class">Reply</string>
     <string name="onboard_describe">Describe it in a few words</string>
     <string name="onboard_match">Find a setup</string>
     <string name="onboard_notice">There is no dedicated template for this yet. This is the closest working setup, and you can change it later in settings.</string>

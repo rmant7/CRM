@@ -1,6 +1,7 @@
 package com.intelliverse.croman
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -8,7 +9,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -142,6 +145,26 @@ class OnboardingScreenTest {
         compose.onNodeWithText("More fields").performClick()
         compose.onNodeWithText("I repair homes").assertExists()
         compose.onNodeWithText("I do beauty treatments").assertExists()
+    }
+
+    @Test
+    @Config(sdk = [23], qualifiers = "w360dp-h640dp")
+    fun welcomeStartsBelowTheStatusBarPadding() {
+        val offers = Onboarding.offers(setOf("realtor", "tutor"))
+        val top = 48.dp
+        compose.setContent {
+            Box(Modifier.fillMaxSize()) {
+                OnboardingChoices(
+                    offers,
+                    onPick = {},
+                    onDescribe = { Onboarding.match(it, offers) },
+                    contentPadding = PaddingValues(top = top),
+                )
+            }
+        }
+        val node = compose.onNodeWithText("Welcome. Everything stays on this phone.").fetchSemanticsNode()
+        val topPx = with(compose.density) { top.toPx() }
+        assertTrue("welcome top ${node.positionInRoot.y} expected >= $topPx", node.positionInRoot.y + 1f >= topPx)
     }
 }
 

@@ -264,6 +264,7 @@ class CromanStore(
                 source = contact.source.trim(),
                 note = contact.note.trim(),
                 searchText = search,
+                doNotContact = contact.doNotContact,
             ),
         )
         audit(contact.workspaceId, "contacts", contact.id, "upsert")
@@ -302,13 +303,7 @@ class CromanStore(
     }
 
     suspend fun getContact(id: String): Contact? =
-        database().contacts().get(id)?.let { row ->
-            Contact(
-                row.id, row.sync.workspaceId, row.fullName, row.phone, row.email, row.company,
-                runCatching { ContactKind.valueOf(row.kind) }.getOrDefault(ContactKind.OTHER),
-                row.source, row.note, row.sync.createdAt, row.sync.updatedAt, row.sync.deletedAt,
-            )
-        }?.takeIf { it.deletedAt == null }
+        database().contacts().get(id)?.toModel()?.takeIf { it.deletedAt == null }
 
     fun observeLinked(workspaceId: String, typeKey: String, relationKey: String, targetId: String): Flow<List<EntityRow>> =
         observeEntities(workspaceId, typeKey, "", null, emptyMap()).map { rows ->
@@ -356,7 +351,13 @@ class CromanStore(
                 searchText = search,
                 pipelineKey = type.pipeline?.key,
                 stageKey = stageKey,
-                subtitle = type.listSubtitle.mapNotNull { key -> fields[key]?.takeIf { it.isNotBlank() } }.joinToString(", "),
+                subtitle = type.listSubtitle.mapNotNull { key ->
+                    val raw = fields[key]?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    val field = type.fields.firstOrNull { it.key == key }
+                    if (field?.fieldType() == FieldType.DATE) raw.toLongOrNull()?.let { millis ->
+                        java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate().toString()
+                    } ?: raw else raw
+                }.joinToString(", "),
                 badge = fields[badgeKey].orEmpty(),
                 moneyAmount = fields[moneyKey]?.toLongOrNull() ?: 0L,
                 moneyCurrency = fields["currency"].orEmpty().ifBlank { "ILS" },
@@ -398,6 +399,10 @@ class CromanStore(
             }
         }
         applyLessonRules(workspaceId, id, type, title, stageKey, fields, relations, existing == null, created, now)
+        val client = relations["client"]
+        if (com.intelliverse.croman.domain.ReplyClass.isStop(fields["reply_class"]) && !client.isNullOrBlank()) {
+            database().contacts().setDoNotContact(client, true, now)
+        }
         audit(workspaceId, "entities", id, "upsert")
         }
     }
@@ -460,7 +465,7 @@ class CromanStore(
     ) {
         if (!type.behaviors.contains(AppointmentEngine.REMINDER)) return
         val taskId = "visit-$id"
-        val whenAt = fields["remind_at"]?.toLongOrNull()
+        val whenAt = fields["remind_at"]?.toLongOrNull() ?: fields["next_step_at"]?.toLongOrNull()
         val contact = relations["student"] ?: relations["client"]
         if (whenAt == null) {
             database().tasks().softDelete(taskId, now)
@@ -686,6 +691,13 @@ class CromanStore(
                 ),
             )
         }
+        if (extras.containsKey("reply_class")) {
+            database().contacts().setDoNotContact(
+                contactId,
+                com.intelliverse.croman.domain.ReplyClass.isStop(extras["reply_class"]),
+                now,
+            )
+        }
     }
 
     suspend fun reminderTasks(): List<TaskItem> = database().tasks().reminders().map { it.toModel() }
@@ -889,7 +901,7 @@ class CromanStore(
     private fun ContactEntity.toModel() = Contact(
         id, sync.workspaceId, fullName, phone, email, company,
         runCatching { ContactKind.valueOf(kind) }.getOrDefault(ContactKind.OTHER),
-        source, note, sync.createdAt, sync.updatedAt, sync.deletedAt,
+        source, note, sync.createdAt, sync.updatedAt, sync.deletedAt, doNotContact,
     )
 
     private fun EntityRecord.toRow() = EntityRow(

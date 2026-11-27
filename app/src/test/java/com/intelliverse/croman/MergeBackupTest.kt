@@ -167,6 +167,25 @@ class MergeBackupTest {
         local.db.close()
     }
 
+    @Test
+    fun newerDoNotContactAndConsultationFieldsWin() = runBlocking {
+        val id = "22222222-2222-4222-8222-222222222222"
+        val older = world("in-flag-old", 2_000L)
+        val ws = older.store.installWorkspace(tutor(), "Office")
+        older.store.saveContact(person(id, ws, "Maya", "555").copy(doNotContact = false))
+        older.store.saveContactExtras(ws, id, mapOf("reply_class" to "P2"))
+        val archive = export(older)
+        val newer = world("loc-flag-new", 8_000L)
+        val localWs = newer.store.installWorkspace(tutor(), "Office")
+        newer.store.saveContact(person(id, localWs, "Maya", "555").copy(doNotContact = true))
+        newer.store.saveContactExtras(localWs, id, mapOf("reply_class" to "X1", "source" to "LinkedIn"))
+        BackupMerger.merge(newer.db.openHelper.writableDatabase, unpacked(archive), photosOf(archive), newer.photos)
+        assertEquals(true, newer.store.getContact(id)?.doNotContact)
+        assertEquals("X1", newer.store.contactExtras(id)["reply_class"])
+        assertEquals("LinkedIn", newer.store.contactExtras(id)["source"])
+        newer.db.close()
+    }
+
     private fun unpacked(archive: File): File {
         val work = File(archive.parentFile, archive.name + "-unpack").apply { deleteRecursively(); mkdirs() }
         BackupArchive.unpack(archive, null, work)
