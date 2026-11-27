@@ -96,6 +96,5 @@ class ScreenUiTest {
         compose.waitForIdle()
         compose.onNodeWithText("לקוחות").assertIsDisplayed()
         compose.onNodeWithText("קונה").assertIsDisplayed()
-        container.database.close()
     }
 }
