@@ -40,6 +40,27 @@ object DemoSamples {
             ),
         )
         val ids = mutableSetOf(contactId)
+        val taskId = Ids.new()
+        if (template.id == "consultation") {
+            val type = template.entityTypes.first { it.key == "consultation" }
+            listOf(
+                Triple("Intake with Maya", "planned", "P2"),
+                Triple("Proposal for Itai", "proposal", "N8"),
+                Triple("Lina stopped the thread", "refused", "X1"),
+            ).forEach { (title, status, code) ->
+                val whenAt = System.currentTimeMillis() + 86_400_000L
+                ids += addEntity(
+                    store, workspaceId, type, title, null, contactId,
+                    mapOf("status" to status, "reply_class" to code, "next_step" to "Write back", "next_step_at" to whenAt.toString(), "source" to "LinkedIn"),
+                )
+            }
+            store.saveContactExtras(workspaceId, contactId, mapOf("reply_class" to "X1"))
+            ids += taskId
+            store.saveTask(
+                TaskItem(taskId, workspaceId, person.task, "", System.currentTimeMillis() + 86_400_000L, null, null, contactId, null, 0, 0),
+            ) { }
+            return ids
+        }
         val property = template.entityTypes.firstOrNull { it.key == "property" }
         if (property != null) {
             ids += addEntity(store, workspaceId, property, person.work, null, contactId, mapOf("status" to "active"))
@@ -56,7 +77,6 @@ object DemoSamples {
                 ids += addEntity(store, workspaceId, type, person.work, type.pipeline?.stages?.firstOrNull()?.key, contactId, emptyMap())
             }
         }
-        val taskId = Ids.new()
         store.saveTask(
             TaskItem(
                 id = taskId,

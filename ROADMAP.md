@@ -38,6 +38,8 @@ Release device checks run on GitHub-hosted emulators (API 23, 30, and 36). Fireb
 
 The interface simplifies discovery, not features. The first screen asks what the person does and opens a working workspace. Extra actions stay available in More and in settings. A later check is to sit with five people who have never used a CRM and watch whether they can add a first client without help.
 
+Consultations and coaching (0.5.0) sit on the existing appointment engine. The card is one record per meeting, with collapsed sections, a next-step date that uses the same reminder as a visit, and an outreach reply classifier. X1 marks the person do-not-contact. Cards and outreach contacts export as UTF-8 CSV. Schema version is 3, adding only `contacts.do_not_contact`; the card fields stay in `field_values` and follow the existing backup merge.
+
 ---
 
 # Дорожная карта CRoMan

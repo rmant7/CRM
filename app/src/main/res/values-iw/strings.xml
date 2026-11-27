@@ -162,6 +162,11 @@
     <string name="add_own_client">הוספת הלקוח שלך</string>
     <string name="add_client">הוספת לקוח</string>
     <string name="demo_numbers">אלה מספרים מההדגמה.</string>
+    <string name="section_filled">מלא</string>
+    <string name="section_empty">ריק</string>
+    <string name="do_not_contact">לא לפנות</string>
+    <string name="export_csv">ייצוא CSV</string>
+    <string name="reply_class">תגובה</string>
     <string name="onboard_describe">תארו בכמה מילים</string>
     <string name="onboard_match">מציאת התאמה</string>
     <string name="onboard_notice">אין עדיין תבנית ייעודית לזה. זו ההגדרה העובדת הקרובה ביותר, ואפשר לשנות אותה אחר כך בהגדרות.</string>

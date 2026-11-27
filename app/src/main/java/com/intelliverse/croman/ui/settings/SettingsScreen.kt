@@ -6,8 +6,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,8 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -455,31 +458,38 @@ internal fun WorkspaceRow(
     onDelete: () -> Unit,
     onNameLines: (Int) -> Unit = {},
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        RadioButton(selected, onSelect)
-        Column(Modifier.weight(1f).clickable(onClick = onSelect)) {
+    var menu by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(
+            name,
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.titleMedium,
+            onTextLayout = { onNameLines(it.lineCount) },
+        )
+        if (category.isNotBlank()) {
             Text(
-                name,
-                maxLines = 2,
+                category,
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge,
-                onTextLayout = { onNameLines(it.lineCount) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (category.isNotBlank()) {
-                Text(
-                    category,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected, onSelect)
+            Spacer(Modifier.weight(1f))
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_more))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.workspace_rename)) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.workspace_delete)) }, onClick = { menu = false; onDelete() })
+                }
             }
-        }
-        IconButton(onClick = onRename) {
-            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.workspace_rename))
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.workspace_delete))
         }
     }
 }

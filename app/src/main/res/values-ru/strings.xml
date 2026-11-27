@@ -161,6 +161,11 @@
     <string name="add_own_client">Добавить своего клиента</string>
     <string name="add_client">Добавить клиента</string>
     <string name="demo_numbers">Это цифры из демо.</string>
+    <string name="section_filled">заполнено</string>
+    <string name="section_empty">пусто</string>
+    <string name="do_not_contact">Не писать</string>
+    <string name="export_csv">Экспорт CSV</string>
+    <string name="reply_class">Ответ</string>
     <string name="onboard_describe">Опишите коротко</string>
     <string name="onboard_match">Подобрать</string>
     <string name="onboard_notice">Отдельного шаблона для этого пока нет. Это ближайшая рабочая настройка, её можно сменить позже в настройках.</string>

@@ -122,6 +122,7 @@ data class ContactEntity(
     val source: String,
     val note: String,
     @ColumnInfo(name = "search_text") val searchText: String,
+    @ColumnInfo(name = "do_not_contact", defaultValue = "0") val doNotContact: Boolean = false,
 )
 
 @Entity(
@@ -353,6 +354,9 @@ interface ContactDao {
 
     @Query("UPDATE contacts SET deleted_at = :now, updated_at = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
+
+    @Query("UPDATE contacts SET do_not_contact = :flag, updated_at = :now WHERE id = :id")
+    suspend fun setDoNotContact(id: String, flag: Boolean, now: Long)
 }
 
 @Dao
@@ -515,7 +519,7 @@ interface MiscDao {
         ChangeLogEntity::class,
         ViewConfigEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class CromanDatabase : RoomDatabase() {
@@ -532,7 +536,7 @@ abstract class CromanDatabase : RoomDatabase() {
 
         fun create(context: Context): CromanDatabase =
             Room.databaseBuilder(context.applicationContext, CromanDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }
@@ -550,5 +554,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             "UPDATE workspaces SET category = 'tutoring', primary_process = 'appointment', enabled_processes = 'appointment' " +
                 "WHERE template_id = 'tutor' AND category = ''",
         )
+    }
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE contacts ADD COLUMN do_not_contact INTEGER NOT NULL DEFAULT 0")
     }
 }

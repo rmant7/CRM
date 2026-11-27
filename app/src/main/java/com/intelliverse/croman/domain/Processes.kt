@@ -76,6 +76,7 @@ object CategoryCatalog {
         CategorySpec("car", "car", ProcessKey.FIELD_SERVICE, L10n("Car service and detailing", "Автосервис и детейлинг", "מוסך ודיטיילינג")),
         CategorySpec("tourism", "tourism", ProcessKey.PROJECT_ORDER, L10n("Tourism and events", "Туризм и события", "תיירות ואירועים")),
         CategorySpec("professional", "professional", ProcessKey.PROJECT_ORDER, L10n("Professional and IT services", "Профессиональные и IT-услуги", "שירותים מקצועיים ו-IT")),
+        CategorySpec("consultation", "consultation", ProcessKey.APPOINTMENT, L10n("Consultations", "Консультации", "ייעוץ")),
         CategorySpec("other", "universal", ProcessKey.PROJECT_ORDER, L10n("Other", "Другое", "אחר")),
     )
 

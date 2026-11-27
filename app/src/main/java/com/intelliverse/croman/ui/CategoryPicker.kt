@@ -2,7 +2,11 @@ package com.intelliverse.croman.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -59,6 +63,7 @@ internal fun OnboardingChoices(
     offers: List<OnboardingOffer>,
     onPick: (String) -> Unit,
     onDescribe: (String) -> OnboardingMatch,
+    contentPadding: PaddingValues = WindowInsets.safeDrawing.asPaddingValues(),
 ) {
     var otherOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
@@ -67,7 +72,7 @@ internal fun OnboardingChoices(
     val primary = Onboarding.primary(offers)
     val more = Onboarding.moreFields(offers)
     Column(
-        Modifier.fillMaxSize().padding(16.dp),
+        Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(stringResource(R.string.onboard_welcome), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

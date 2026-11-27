@@ -1,0 +1,127 @@
+{
+  "id": "consultation",
+  "version": 1,
+  "category": "consultation",
+  "process": "appointment",
+  "name": {"en": "Consultations", "ru": "Консультации", "he": "ייעוץ"},
+  "country": "*",
+  "dashboard": "generic",
+  "messengers": ["whatsapp", "telegram", "max"],
+  "contactProfile": {
+    "title": {"en": "People", "ru": "Люди", "he": "אנשים"},
+    "emptyTitle": {"en": "No people yet", "ru": "Людей пока нет", "he": "עדיין אין אנשים"},
+    "emptyBody": {"en": "Add someone you might consult.", "ru": "Добавьте того, с кем можете провести консультацию.", "he": "הוסיפו אדם לייעוץ."},
+    "fields": [
+      {"key": "full_name", "label": {"en": "Name", "ru": "Имя", "he": "שם"}, "type": "text", "required": true},
+      {"key": "phone", "label": {"en": "Phone", "ru": "Телефон", "he": "טלפון"}, "type": "text"},
+      {"key": "profile_url", "label": {"en": "Profile URL", "ru": "Ссылка на профиль", "he": "קישור לפרופיל"}, "type": "text"},
+      {"key": "segment", "label": {"en": "Segment", "ru": "Сегмент", "he": "פלח"}, "type": "text"},
+      {"key": "industry", "label": {"en": "Industry", "ru": "Отрасль", "he": "תעשייה"}, "type": "text"},
+      {"key": "language", "label": {"en": "Language", "ru": "Язык", "he": "שפה"}, "type": "text"},
+      {"key": "mechanic_code", "label": {"en": "Mechanic code", "ru": "Код механики", "he": "קוד מנגנון"}, "type": "text"},
+      {"key": "message_version", "label": {"en": "Message version", "ru": "Версия сообщения", "he": "גרסת הודעה"}, "type": "text"},
+      {"key": "touch_dates", "label": {"en": "Touch dates", "ru": "Даты касаний", "he": "תאריכי פנייה"}, "type": "text"},
+      {"key": "reply_class", "label": {"en": "Reply", "ru": "Ответ", "he": "תגובה"}, "type": "select", "options": [
+        {"value": "P1", "label": {"en": "P1 ready to take part", "ru": "P1 готов участвовать", "he": "P1 מוכן להשתתף"}},
+        {"value": "P2", "label": {"en": "P2 wants details", "ru": "P2 хочет подробности", "he": "P2 רוצה פרטים"}},
+        {"value": "P3", "label": {"en": "P3 wants material", "ru": "P3 хочет материал", "he": "P3 רוצה חומר"}},
+        {"value": "P4", "label": {"en": "P4 discussion", "ru": "P4 обсуждение", "he": "P4 דיון"}},
+        {"value": "N1", "label": {"en": "N1 not relevant", "ru": "N1 не актуально", "he": "N1 לא רלוונטי"}},
+        {"value": "N2", "label": {"en": "N2 no time", "ru": "N2 нет времени", "he": "N2 אין זמן"}},
+        {"value": "N3", "label": {"en": "N3 unclear", "ru": "N3 непонятно", "he": "N3 לא ברור"}},
+        {"value": "N4", "label": {"en": "N4 trust", "ru": "N4 доверие", "he": "N4 אמון"}},
+        {"value": "N5", "label": {"en": "N5 topic", "ru": "N5 тема", "he": "N5 נושא"}},
+        {"value": "N6", "label": {"en": "N6 format", "ru": "N6 формат", "he": "N6 פורמט"}},
+        {"value": "N7", "label": {"en": "N7 commercial", "ru": "N7 коммерция", "he": "N7 מסחרי"}},
+        {"value": "N8", "label": {"en": "N8 later", "ru": "N8 позже", "he": "N8 מאוחר יותר"}},
+        {"value": "N9", "label": {"en": "N9 other", "ru": "N9 другое", "he": "N9 אחר"}},
+        {"value": "U1", "label": {"en": "U1 neutral", "ru": "U1 нейтрально", "he": "U1 ניטרלי"}},
+        {"value": "U2", "label": {"en": "U2 autoreply", "ru": "U2 автоответ", "he": "U2 מענה אוטומטי"}},
+        {"value": "U3", "label": {"en": "U3 unknown", "ru": "U3 неизвестно", "he": "U3 לא ידוע"}},
+        {"value": "X1", "label": {"en": "X1 stop contacting", "ru": "X1 больше не писать", "he": "X1 להפסיק לפנות"}}
+      ]},
+      {"key": "consent", "label": {"en": "Consent", "ru": "Согласие", "he": "הסכמה"}, "type": "select", "options": [
+        {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+        {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+      ]},
+      {"key": "booked", "label": {"en": "Booked", "ru": "Записан", "he": "נקבע"}, "type": "select", "options": [
+        {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+        {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+      ]},
+      {"key": "attended", "label": {"en": "Attended", "ru": "Пришёл", "he": "הגיע"}, "type": "select", "options": [
+        {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+        {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+      ]},
+      {"key": "target_status", "label": {"en": "Target status", "ru": "Статус цели", "he": "סטטוס יעד"}, "type": "text"},
+      {"key": "sale", "label": {"en": "Sale", "ru": "Продажа", "he": "מכירה"}, "type": "select", "options": [
+        {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+        {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+      ]},
+      {"key": "revenue", "label": {"en": "Revenue", "ru": "Выручка", "he": "הכנסה"}, "type": "money"},
+      {"key": "minutes_spent", "label": {"en": "Minutes spent", "ru": "Минут потрачено", "he": "דקות שהושקעו"}, "type": "number"},
+      {"key": "comment", "label": {"en": "Comment", "ru": "Комментарий", "he": "הערה"}, "type": "text"}
+    ]
+  },
+  "menu": [
+    {"route": "home", "label": {"en": "Home", "ru": "Главная", "he": "בית"}},
+    {"route": "contacts", "label": {"en": "People", "ru": "Люди", "he": "אנשים"}},
+    {"route": "entities:consultation", "label": {"en": "Consultations", "ru": "Консультации", "he": "ייעוצים"}},
+    {"route": "tasks", "label": {"en": "Tasks", "ru": "Задачи", "he": "משימות"}}
+  ],
+  "entityTypes": [
+    {
+      "key": "consultation",
+      "label": {"en": "Consultation", "ru": "Консультация", "he": "ייעוץ"},
+      "listSubtitle": ["status", "next_step_at"],
+      "behaviors": ["visit_reminder"],
+      "relations": [
+        {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"}
+      ],
+      "fields": [
+        {"key": "meeting_date", "label": {"en": "Date", "ru": "Дата", "he": "תאריך"}, "type": "date"},
+        {"key": "source", "label": {"en": "Source", "ru": "Источник", "he": "מקור"}, "type": "text"},
+        {"key": "contact_type", "label": {"en": "Contact type", "ru": "Тип контакта", "he": "סוג קשר"}, "type": "text"},
+        {"key": "meeting_reason", "label": {"en": "Reason for the meeting", "ru": "Зачем встреча", "he": "סיבת הפגישה"}, "type": "text"},
+        {"key": "point_a", "label": {"en": "Point A", "ru": "Точка А", "he": "נקודה א"}, "type": "text"},
+        {"key": "urgency", "label": {"en": "Urgency 1–10", "ru": "Срочность 1–10", "he": "דחיפות 1–10"}, "type": "number"},
+        {"key": "point_b", "label": {"en": "Point B", "ru": "Точка Б", "he": "נקודה ב"}, "type": "text"},
+        {"key": "result_criteria", "label": {"en": "Result criteria", "ru": "Критерии результата", "he": "קריטריונים לתוצאה"}, "type": "text"},
+        {"key": "tried", "label": {"en": "What they tried", "ru": "Что уже пробовали", "he": "מה כבר ניסו"}, "type": "text"},
+        {"key": "tried_result", "label": {"en": "Results of that", "ru": "Что из этого вышло", "he": "מה יצא מזה"}, "type": "text"},
+        {"key": "blocked", "label": {"en": "What got in the way", "ru": "Что мешало или не хватало", "he": "מה הפריע או חסר"}, "type": "text"},
+        {"key": "choice_criteria", "label": {"en": "Choice criteria", "ru": "Критерии выбора", "he": "קריטריוני בחירה"}, "type": "text"},
+        {"key": "agreed_summary", "label": {"en": "Agreed summary", "ru": "Согласованное резюме", "he": "סיכום מוסכם"}, "type": "text"},
+        {"key": "impressions", "label": {"en": "Impressions", "ru": "Впечатления от показа", "he": "רשמים מההדגמה"}, "type": "text"},
+        {"key": "proposed_format", "label": {"en": "Proposed format", "ru": "Предложенный формат", "he": "הפורמט שהוצע"}, "type": "text"},
+        {"key": "price", "label": {"en": "Price", "ru": "Цена", "he": "מחיר"}, "type": "money"},
+        {"key": "doubts", "label": {"en": "Doubts", "ru": "Сомнения", "he": "ספקות"}, "type": "text"},
+        {"key": "refusal_words", "label": {"en": "Refusal in their words", "ru": "Отказ их словами", "he": "סירוב במילים שלהם"}, "type": "text"},
+        {"key": "status", "label": {"en": "Status", "ru": "Статус", "he": "סטטוס"}, "type": "select", "options": [
+          {"value": "planned", "label": {"en": "Planned", "ru": "Запланирована", "he": "מתוכננת"}},
+          {"value": "held", "label": {"en": "Held", "ru": "Проведена", "he": "התקיימה"}},
+          {"value": "proposal", "label": {"en": "Proposal", "ru": "Предложение", "he": "הצעה"}},
+          {"value": "paid", "label": {"en": "Paid", "ru": "Оплачена", "he": "שולמה"}},
+          {"value": "refused", "label": {"en": "Refused", "ru": "Отказ", "he": "סירוב"}}
+        ]},
+        {"key": "next_step", "label": {"en": "Next step", "ru": "Следующий шаг", "he": "הצעד הבא"}, "type": "text"},
+        {"key": "next_step_at", "label": {"en": "Next step date", "ru": "Дата следующего шага", "he": "תאריך הצעד הבא"}, "type": "date"},
+        {"key": "meeting_type", "label": {"en": "Meeting type", "ru": "Тип встречи", "he": "סוג פגישה"}, "type": "text"},
+        {"key": "has_request", "label": {"en": "Has a request", "ru": "Есть запрос", "he": "יש בקשה"}, "type": "select", "options": [
+          {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+          {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+        ]},
+        {"key": "offer_made", "label": {"en": "Offer made", "ru": "Оффер сделан", "he": "ההצעה ניתנה"}, "type": "select", "options": [
+          {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+          {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+        ]},
+        {"key": "price_reaction", "label": {"en": "Reaction to price", "ru": "Реакция на цену", "he": "תגובה למחיר"}, "type": "text"},
+        {"key": "paid", "label": {"en": "Paid", "ru": "Оплатил", "he": "שילם"}, "type": "select", "options": [
+          {"value": "yes", "label": {"en": "Yes", "ru": "Да", "he": "כן"}},
+          {"value": "no", "label": {"en": "No", "ru": "Нет", "he": "לא"}}
+        ]},
+        {"key": "paid_amount", "label": {"en": "Paid amount", "ru": "Сумма оплаты", "he": "סכום ששולם"}, "type": "money"},
+        {"key": "paid_results", "label": {"en": "Results of paid work", "ru": "Результаты оплаченной работы", "he": "תוצאות העבודה ששולמה"}, "type": "text"}
+      ]
+    }
+  ]
+}

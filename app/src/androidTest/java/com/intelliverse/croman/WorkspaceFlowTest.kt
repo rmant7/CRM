@@ -110,6 +110,34 @@ class WorkspaceFlowTest {
         rule.onNodeWithText(rule.activity.getString(R.string.settings)).assertIsDisplayed()
         assertDirection()
         DeviceShots.save("${localeArg()}-settings")
+        DeviceShots.save("${localeArg()}-workspace-row")
+    }
+
+    @Test
+    fun test04_consultationCardAndOutreachStop() {
+        val app = rule.activity.application as CromanApp
+        val template = TemplateCatalog.load(rule.activity, "consultation")
+        val id = runBlocking(Dispatchers.IO) { app.container.store.installWorkspace(template, "Consultations") }
+        runBlocking(Dispatchers.IO) {
+            val created = DemoSamples.load(app.container.store, id, template)
+            app.container.settings.rememberDemo(id, created)
+            app.container.settings.setWorkspace(id)
+        }
+        val consultations = template.entityTypes.first { it.key == "consultation" }.label
+        rule.waitUntil(30_000) { visible(consultations).isNotEmpty() }
+        rule.onNodeWithText(visible(consultations)).performClick()
+        rule.waitUntil(30_000) { rule.onAllNodesWithText("Intake with Maya").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText("Intake with Maya").performClick()
+        val next = L10n("Status and next step", "Статус и следующий шаг", "סטטוס והצעד הבא")
+        rule.waitUntil(30_000) { visible(next).isNotEmpty() }
+        DeviceShots.save("${localeArg()}-consultation")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        val people = template.contactProfile!!.title
+        rule.waitUntil(30_000) { visible(people).isNotEmpty() }
+        rule.onNodeWithText(visible(people)).performClick()
+        val stop = rule.activity.getString(R.string.do_not_contact)
+        rule.waitUntil(30_000) { rule.onAllNodesWithText(stop).fetchSemanticsNodes().isNotEmpty() }
+        DeviceShots.save("${localeArg()}-outreach")
     }
 
     private fun visible(name: L10n): String = listOf(name.en, name.ru, name.he).firstOrNull { text ->

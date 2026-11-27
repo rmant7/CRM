@@ -5,6 +5,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.local.CromanDatabase
 import com.intelliverse.croman.data.local.MIGRATION_1_2
+import com.intelliverse.croman.data.local.MIGRATION_2_3
 import com.intelliverse.croman.domain.AppointmentEngine
 import com.intelliverse.croman.domain.CategoryCatalog
 import com.intelliverse.croman.domain.FieldServiceEngine
@@ -27,7 +28,7 @@ class ProcessCatalogTest {
 
     @Test
     fun elevenCategoriesCoverFourEngines() {
-        assertEquals(11, CategoryCatalog.all.size)
+        assertEquals(12, CategoryCatalog.all.size)
         assertEquals(4, CategoryCatalog.all.map { it.process }.distinct().size)
         assertEquals(ProcessKey.OBJECT_DEAL, CategoryCatalog.byId("real_estate")?.process)
         assertEquals(ProcessKey.APPOINTMENT, CategoryCatalog.byId("tutoring")?.process)
@@ -100,6 +101,25 @@ class SchemaMigrationTest {
             assertEquals("real_estate", cursor.getString(0))
             assertEquals("object_deal", cursor.getString(1))
             assertEquals("object_deal", cursor.getString(2))
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun migratesAVersion2ContactAndKeepsDoNotContactOff() {
+        val name = "migration-v2.db"
+        val db = helper.createDatabase(name, 2)
+        db.execSQL(
+            "INSERT INTO contacts (id, full_name, phone, email, company, kind, source, note, search_text, " +
+                "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at) " +
+                "VALUES ('c1', 'Maya', '', '', '', 'OTHER', '', '', 'maya', 'ws', 'u', 'u', 'u', NULL, 1, 1, NULL)",
+        )
+        db.close()
+        val migrated = helper.runMigrationsAndValidate(name, 3, true, MIGRATION_2_3)
+        migrated.query("SELECT full_name, do_not_contact FROM contacts WHERE id = 'c1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Maya", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
         }
         migrated.close()
     }

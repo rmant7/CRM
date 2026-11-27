@@ -56,6 +56,11 @@ object Onboarding {
             listOf("tour", "trip", "event", "travel", "тур", "поезд", "событ", "טיול", "אירוע"),
         ),
         OnboardingOffer(
+            "consultation",
+            L10n("I run consultations", "Провожу консультации", "מעביר ייעוץ"),
+            listOf("consult", "coaching", "diagnostic", "консульт", "коуч", "разбор", "ייעוץ", "אימון"),
+        ),
+        OnboardingOffer(
             "professional",
             L10n("I run projects for clients", "Веду проекты для клиентов", "מוביל פרויקטים ללקוחות"),
             listOf("project", "client work", "consult", "проект", "заказ", "פרויקט"),

@@ -100,6 +100,25 @@ fun EntityListScreen(workspaceId: String, template: TemplateFile, typeKey: Strin
     CrmScaffold(l10n(type.label), floatingActionButton = { if (!board) AddFab(onCreate) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             SearchField(query, { query = it }, Modifier.padding(16.dp))
+            if (type.key == com.intelliverse.croman.domain.ConsultationCard.TYPE) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val scope = androidx.compose.runtime.rememberCoroutineScope()
+                val language = com.intelliverse.croman.ui.theme.LocalLanguage.current
+                TextButton(onClick = {
+                    scope.launch {
+                        val headers = listOf(
+                            com.intelliverse.croman.domain.L10n("Name", "Имя", "שם").text(language),
+                            com.intelliverse.croman.domain.L10n("Status", "Статус", "סטטוס").text(language),
+                            com.intelliverse.croman.domain.L10n("Next step", "Следующий шаг", "הצעד הבא").text(language),
+                        )
+                        val lines = rows.orEmpty().map { row ->
+                            val fields = store.entityFields(row.id)
+                            listOf(row.title, fields["status"].orEmpty(), fields["next_step"].orEmpty())
+                        }
+                        shareCsv(context, "consultations.csv", com.intelliverse.croman.domain.CsvExport.document(headers, lines))
+                    }
+                }, modifier = Modifier.padding(horizontal = 8.dp)) { Text(stringResource(R.string.export_csv)) }
+            }
             val stages = listOf("all") + type.pipeline?.stages?.map { it.key }.orEmpty()
             if (stages.size > 1) {
                 ChipRow(stages, stage, { key ->
@@ -350,7 +369,15 @@ fun EntityEditorScreen(
                     }
                 }
             }
-            items(type.fields, key = { it.key }) { field ->
+            if (type.key == com.intelliverse.croman.domain.ConsultationCard.TYPE) {
+                item {
+                    ConsultationSections(type.fields, fields, { key, value -> fields = fields + (key to value) }, { key -> fields = fields - key }) { key ->
+                        pickDateKey.value = key
+                        pickDate()
+                    }
+                }
+            }
+            if (type.key != com.intelliverse.croman.domain.ConsultationCard.TYPE) items(type.fields, key = { it.key }) { field ->
                 val value = fields[field.key].orEmpty()
                 when (field.fieldType()) {
                     FieldType.SELECT -> CrmDropdown(l10n(field.label), field.options.firstOrNull { it.value == value }?.let { l10n(it.label) }.orEmpty(), field.options, { l10n(it.label) }) {
