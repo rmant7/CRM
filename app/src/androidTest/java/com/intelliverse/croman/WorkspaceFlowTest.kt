@@ -170,13 +170,13 @@ class WorkspaceFlowTest {
         DeviceShots.save("${localeArg()}-history")
         pressBack()
         com.intelliverse.croman.ui.share.ImportPreviewShot.transcript = """
-            25/12/2024, 16:05 - Maya Levi: Hello from the export
+            25/12/2024, 16:05 - Export Sender: Hello from the export
             25/12/2024, 16:06 - Dana: Reply
         """.trimIndent()
         rule.onNodeWithText("Maya Levi").performClick()
         val preview = rule.activity.getString(R.string.chat_import_title)
         rule.waitUntil(30_000) { rule.onAllNodesWithText(preview).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithText("Maya Levi", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("Export Sender").assertIsDisplayed()
         DeviceShots.save("${localeArg()}-import-preview")
         rule.onNodeWithContentDescription(rule.activity.getString(R.string.cd_back)).performClick()
         rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
