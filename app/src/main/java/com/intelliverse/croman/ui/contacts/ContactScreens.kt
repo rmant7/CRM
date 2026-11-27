@@ -212,6 +212,13 @@ fun ContactDetailScreen(
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
+    androidx.compose.runtime.LaunchedEffect(contactId) {
+        val staged = com.intelliverse.croman.ui.share.ImportPreviewShot.transcript
+        if (staged != null && chatText == null) {
+            com.intelliverse.croman.ui.share.ImportPreviewShot.transcript = null
+            chatText = staged
+        }
+    }
     val transcript = chatText
     if (transcript != null) {
         com.intelliverse.croman.ui.share.ChatImportScreen(transcript, people, { log, me, chosen, newName ->
@@ -326,7 +333,7 @@ fun ContactDetailScreen(
                 Column {
                     OutlinedTextField(pasteBody, { pasteBody = it }, Modifier.fillMaxWidth(), minLines = 3)
                     Row {
-                        TextButton(onClick = { pasteOut = false }) { Text(stringResource(if (!pasteOut) R.string.direction_in else R.string.direction_in)) }
+                        TextButton(onClick = { pasteOut = false }) { Text(stringResource(R.string.direction_in)) }
                         TextButton(onClick = { pasteOut = true }) { Text(stringResource(R.string.direction_out)) }
                         Text(if (pasteOut) stringResource(R.string.direction_out) else stringResource(R.string.direction_in))
                     }
