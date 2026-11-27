@@ -36,10 +36,12 @@ fun ShareImportScreen(
     var note by remember { mutableStateOf("") }
     var makeTask by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
+    var allowLarge by remember { mutableStateOf(false) }
     val creating = selected == null
     CrmScaffold(stringResource(R.string.share_title), onClose, actions = {
         TextButton(onClick = {
             if (payload.rejectedMime != null) return@TextButton
+            if (payload.oversized && !allowLarge) return@TextButton
             if (creating && newName.isBlank()) {
                 error = true
                 return@TextButton
@@ -52,6 +54,15 @@ fun ShareImportScreen(
             item { Text(channelTitle(payload.channel), style = MaterialTheme.typography.titleMedium) }
             if (payload.rejectedMime != null) {
                 item { Text(stringResource(R.string.share_unsupported, payload.rejectedMime), color = MaterialTheme.colorScheme.error) }
+            }
+            if (payload.oversized) {
+                item { Text(stringResource(R.string.share_large_video)) }
+                item {
+                    androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(allowLarge, { allowLarge = it })
+                        Text(stringResource(R.string.share_large_confirm))
+                    }
+                }
             }
             if (payload.text.isNotBlank()) {
                 item { Text(payload.text) }

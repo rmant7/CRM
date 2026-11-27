@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.6.0 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Share text or files from another app into a client. Consultations use the appointment engine. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.7.0 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Share text or files from another app into a client. Consultations use the appointment engine. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -9,8 +9,8 @@ Copyright 2026 Roman Mantelmakher. Apache License 2.0.
 ## What you can do
 
 - Switch workspaces. Creating one asks for a name, and a second workspace of the same template needs its own name. You can rename or hide a workspace. The **Realtor** template covers clients, listings (with photos), a deal pipeline (list and board), tasks with local reminders, notes, search, and a home summary. The **Tutor** template uses student fields and lessons (date, duration, weekly repeat, status, payment, package balance).
-- Call, open WhatsApp for a number that can be written in international form, or open a Telegram chat when you have saved a username. A phone number does not open a Telegram chat. Sharing text into Telegram is labeled as sharing, not as a message to that person. The history says the app was opened, and “sent” only after you confirm. The app never reads replies.
-- Share text, links, images, audio, or documents from another app into CRoMan and attach them to a client. This is a manual share, not access to the whole chat.
+- On the client card, next to the phone number, one row of icons: Call, SMS, WhatsApp, Telegram, and Email. A missing phone, Telegram username, or email leaves that icon in place and explains what to add. Email and the Telegram username are fields on the client and are edited in the client editor. The same row is on a deal or consultation that points at that client. WhatsApp opens only for a number that can be written in international form. A phone number does not open a Telegram chat. The history says the app was opened, and “sent” only after you confirm. The app never reads replies.
+- Share text, links, images, audio, video, or documents from another app into CRoMan and attach them to a client. A video over 100 MB asks before it is saved. Videos are kept with the client, so an exported backup zip includes them. This is a manual share, not access to the whole chat. A WhatsApp chat export (.txt or .zip) and a VCF card can be imported. Paste from the clipboard into the client history.
 - Export or import one zip (database + photos) through the system file picker. A password is optional. If you set one and forget it, that backup cannot be recovered. Import can replace everything or merge into the data already on the device (the default when moving records from one person to another). Merging the same backup twice changes nothing. This merge is the step before a later LAN sync.
 - English, Russian, and Hebrew, with right-to-left layout for Hebrew.
 
@@ -59,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.6.0 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Текст и файлы из другого приложения можно сохранить клиенту через «Поделиться». Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.7.0 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Текст и файлы из другого приложения можно сохранить клиенту через «Поделиться». Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 
@@ -68,7 +68,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Возможности
 
 - Несколько рабочих пространств. При создании нужно имя, второе пространство того же шаблона — со своим именем. Пространство можно переименовать или скрыть. Шаблон **Риелтор**: клиенты, объекты с фото, воронка сделок (список и доска), задачи с локальными напоминаниями, заметки, поиск и сводка. Шаблон **Репетитор**: поля ученика и уроки (дата, длительность, еженедельный повтор, статус, оплата, баланс пакета).
-- Звонок, WhatsApp по номеру в международном виде и чат Telegram, только если сохранено имя пользователя. Номер телефона чат Telegram не открывает. «Поделиться текстом» — это не отправка конкретному человеку. В истории: приложение открыто, а «отправлено» — только после вашего подтверждения. Ответы приложение не читает.
+- В карточке клиента, рядом с телефоном, один ряд значков: звонок, SMS, WhatsApp, Telegram и почта. Если нет телефона, имени Telegram или почты, значок остаётся и подсказывает, что добавить. Почта и имя Telegram — поля клиента, их правят в редакторе клиента. Тот же ряд есть у сделки или консультации, которая ссылается на этого клиента. WhatsApp открывается только по номеру в международном виде. Номер телефона чат Telegram не открывает. В истории: приложение открыто, а «отправлено» — только после вашего подтверждения. Ответы приложение не читает.
 - Через «Поделиться» можно сохранить текст, ссылку, изображение, звук или документ в карточку клиента. Это ручная передача, не доступ ко всей переписке.
 - Экспорт и импорт одного zip (база и фото) через системный выбор файла. Пароль необязателен. Если задать его и забыть, эту копию нельзя восстановить. При импорте можно заменить всё или слить с данными на устройстве (так по умолчанию передают записи другому человеку). Повторное слияние той же копии ничего не меняет. Это шаг перед будущей синхронизацией по локальной сети.
 - Русский, английский и иврит; для иврита интерфейс справа налево.

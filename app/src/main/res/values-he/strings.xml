@@ -193,7 +193,10 @@
     <string name="telegram_username">שם משתמש בטלגרם</string>
     <string name="telegram_open">פתיחת צ׳אט בטלגרם</string>
     <string name="telegram_share">שיתוף טקסט בטלגרם</string>
-    <string name="telegram_need_username">מספר טלפון לא פותח צ׳אט בטלגרם. הוסיפו שם משתמש.</string>
+    <string name="telegram_need_username">הוסיפו שם משתמש בטלגרם בכרטיס הלקוח. מספר טלפון לא פותח את הצ׳אט.</string>
+    <string name="cd_sms">מסרון</string>
+    <string name="cd_email">דוא״ל</string>
+    <string name="email_missing">הוסיפו דוא״ל בכרטיס הלקוח.</string>
     <string name="max_share">שיתוף ב-MAX</string>
     <string name="call_opened">חייגן הטלפון נפתח</string>
     <string name="share_title">שמירה ב-CRoMan</string>
@@ -208,4 +211,21 @@
     <string name="share_from_other">מאפליקציה אחרת</string>
     <string name="share_channel">שותף</string>
     <string name="share_no_workspace">צרו סביבת עבודה, ואז שתפו שוב.</string>
+    <string name="share_large_video">הסרטון גדול מ-100 MB. הוא נשמר אצל הלקוח וייכנס לגיבוי הבא שתייצאו.</string>
+    <string name="share_large_confirm">שמירת הסרטון הגדול</string>
+    <string name="paste_message">הדבקה מהלוח</string>
+    <string name="import_chat">ייבוא שיחה או אנשי קשר</string>
+    <string name="direction_in">נכנס</string>
+    <string name="direction_out">יוצא</string>
+    <string name="direction_unknown">לא ידוע</string>
+    <string name="chat_import_title">ייבוא שיחה</string>
+    <string name="chat_import_save">ייבוא</string>
+    <string name="chat_import_count">%1$d הודעות, %2$d שולחים</string>
+    <string name="chat_import_ambiguous">התאריכים יכולים להיות יום/חודש או חודש/יום. בחרו.</string>
+    <string name="chat_import_dmy">יום/חודש/שנה</string>
+    <string name="chat_import_mdy">חודש/יום/שנה</string>
+    <string name="chat_import_me">מי מהשולחים הוא אתם?</string>
+    <string name="chat_import_not_me">אף אחד מאלה אינו אני</string>
+    <string name="vcf_title">אנשי קשר מכרטיס</string>
+    <string name="vcf_count">%1$d כרטיסים</string>
 </resources>

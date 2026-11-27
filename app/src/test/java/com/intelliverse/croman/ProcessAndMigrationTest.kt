@@ -123,4 +123,26 @@ class SchemaMigrationTest {
         }
         migrated.close()
     }
+
+    @Test
+    fun migratesVersion3ToMessagesTable() {
+        val name = "migration-v3.db"
+        val db = helper.createDatabase(name, 3)
+        db.execSQL(
+            "INSERT INTO contacts (id, full_name, phone, email, company, kind, source, note, search_text, " +
+                "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at, do_not_contact) " +
+                "VALUES ('c1', 'Maya', '', '', '', 'OTHER', '', '', 'maya', 'ws', 'u', 'u', 'u', NULL, 1, 1, NULL, 0)",
+        )
+        db.close()
+        val migrated = helper.runMigrationsAndValidate(name, 4, true, com.intelliverse.croman.data.local.MIGRATION_3_4)
+        migrated.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'messages'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+        }
+        migrated.query("SELECT full_name, do_not_contact FROM contacts WHERE id = 'c1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Maya", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
+        }
+        migrated.close()
+    }
 }

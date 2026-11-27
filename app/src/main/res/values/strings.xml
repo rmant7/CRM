@@ -193,7 +193,10 @@
     <string name="telegram_username">Telegram username</string>
     <string name="telegram_open">Open Telegram chat</string>
     <string name="telegram_share">Share text in Telegram</string>
-    <string name="telegram_need_username">A phone number does not open a Telegram chat. Add a username.</string>
+    <string name="telegram_need_username">Add a Telegram username on the client card. A phone number does not open the chat.</string>
+    <string name="cd_sms">SMS</string>
+    <string name="cd_email">Email</string>
+    <string name="email_missing">Add an email on the client card.</string>
     <string name="max_share">Share in MAX</string>
     <string name="call_opened">Phone dialer opened</string>
     <string name="share_title">Save into CRoMan</string>
@@ -208,4 +211,21 @@
     <string name="share_from_other">From another app</string>
     <string name="share_channel">Shared in</string>
     <string name="share_no_workspace">Create a workspace, then share again.</string>
+    <string name="share_large_video">This video is over 100 MB. It is stored with the client and included in the next backup you export.</string>
+    <string name="share_large_confirm">Save this large video</string>
+    <string name="paste_message">Paste from clipboard</string>
+    <string name="import_chat">Import chat or contacts</string>
+    <string name="direction_in">Incoming</string>
+    <string name="direction_out">Outgoing</string>
+    <string name="direction_unknown">Unknown</string>
+    <string name="chat_import_title">Import a chat</string>
+    <string name="chat_import_save">Import</string>
+    <string name="chat_import_count">%1$d messages, %2$d senders</string>
+    <string name="chat_import_ambiguous">The dates could be day/month or month/day. Choose one.</string>
+    <string name="chat_import_dmy">Day/month/year</string>
+    <string name="chat_import_mdy">Month/day/year</string>
+    <string name="chat_import_me">Which sender is you?</string>
+    <string name="chat_import_not_me">None of these is me</string>
+    <string name="vcf_title">Contacts from a card</string>
+    <string name="vcf_count">%1$d cards</string>
 </resources>

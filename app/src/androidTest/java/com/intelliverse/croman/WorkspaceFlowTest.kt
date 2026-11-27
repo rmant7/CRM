@@ -154,7 +154,20 @@ class WorkspaceFlowTest {
         rule.onNodeWithText(visible(people).ifBlank { people.text("en") }, substring = true).performClick()
         val stop = rule.activity.getString(R.string.do_not_contact)
         rule.waitUntil(30_000) { rule.onAllNodesWithText(stop).fetchSemanticsNodes().isNotEmpty() }
+        runBlocking(Dispatchers.IO) {
+            val maya = app.container.store.observeContacts(id, "", null).first().first { it.fullName == "Maya Levi" }
+            app.container.store.saveComm(
+                com.intelliverse.croman.domain.CommMessage(
+                    com.intelliverse.croman.domain.Ids.new(), id, maya.id, "whatsapp", "in", "Maya Levi",
+                    "Imported hello", System.currentTimeMillis(), "imported", null, "", 0, 0,
+                ),
+            )
+        }
         rule.onNodeWithText("Maya Levi").performClick()
+        rule.waitUntil(30_000) { rule.onAllNodesWithText("Imported hello").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithContentDescription(rule.activity.getString(R.string.call)).assertIsDisplayed()
+        DeviceShots.save("${localeArg()}-card-actions")
+        DeviceShots.save("${localeArg()}-history")
         rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithContentDescription(edit).performClick()
         val reply = rule.activity.getString(R.string.reply_class)

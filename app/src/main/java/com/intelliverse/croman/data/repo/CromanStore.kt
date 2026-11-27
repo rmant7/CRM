@@ -12,6 +12,7 @@ import com.intelliverse.croman.data.local.EntityRecord
 import com.intelliverse.croman.data.local.EntityTypeEntity
 import com.intelliverse.croman.data.local.FieldDefinitionEntity
 import com.intelliverse.croman.data.local.FieldValueEntity
+import com.intelliverse.croman.data.local.CommMessageEntity
 import com.intelliverse.croman.data.local.MessageEntity
 import com.intelliverse.croman.data.local.PaymentEntity
 import com.intelliverse.croman.data.local.PipelineEntity
@@ -40,6 +41,7 @@ import com.intelliverse.croman.domain.HomeCalculator
 import com.intelliverse.croman.domain.HomeSummary
 import com.intelliverse.croman.domain.Ids
 import com.intelliverse.croman.domain.LocalUser
+import com.intelliverse.croman.domain.CommMessage
 import com.intelliverse.croman.domain.MessageEntry
 import com.intelliverse.croman.domain.MessageStatus
 import com.intelliverse.croman.domain.PaymentKind
@@ -251,7 +253,7 @@ class CromanStore(
         val existing = database().contacts().get(contact.id)
         val now = clock()
         val created = existing?.sync?.createdAt ?: now
-        val search = TextFold.fold(listOf(contact.fullName, contact.phone, contact.email, contact.company, contact.note).joinToString(" "))
+        val search = TextFold.fold(listOf(contact.fullName, contact.phone, contact.email, contact.company, contact.note, contact.telegram).joinToString(" "))
         database().contacts().upsert(
             ContactEntity(
                 id = contact.id,
@@ -265,6 +267,7 @@ class CromanStore(
                 note = contact.note.trim(),
                 searchText = search,
                 doNotContact = contact.doNotContact,
+                telegram = contact.telegram.trim().removePrefix("@"),
             ),
         )
         audit(contact.workspaceId, "contacts", contact.id, "upsert")
@@ -728,7 +731,7 @@ class CromanStore(
             }
         }
 
-    suspend fun addDocument(workspaceId: String, ownerId: String, fileName: String, title: String, mime: String = "image/jpeg") {
+    suspend fun addDocument(workspaceId: String, ownerId: String, fileName: String, title: String, mime: String = "image/jpeg"): String {
         val now = clock()
         val sort = database().misc().maxSort(ownerId) + 1
         val id = Ids.new()
@@ -736,6 +739,7 @@ class CromanStore(
             DocumentEntity(id, stamp(workspaceId, now, now), ownerId, fileName, mime.ifBlank { "application/octet-stream" }, title, sort),
         )
         audit(workspaceId, "documents", id, "upsert")
+        return id
     }
 
     suspend fun softDeleteDocument(id: String, workspaceId: String, fileName: String, photos: PhotoStore) {
@@ -790,6 +794,35 @@ class CromanStore(
 
     fun observeMessages(contactId: String): Flow<List<MessageEntry>> =
         database().misc().messages(contactId).map { rows -> rows.map { it.toModel() } }
+
+    fun observeComm(contactId: String): Flow<List<CommMessage>> =
+        database().misc().comms(contactId).map { rows -> rows.map { it.toComm() } }
+
+    suspend fun saveComm(message: CommMessage): Boolean {
+        if (!message.importKey.isNullOrBlank()) {
+            val existing = database().misc().commByKey(message.workspaceId, message.importKey)
+            if (existing != null) return false
+        }
+        val now = clock()
+        val created = if (message.createdAt == 0L) now else message.createdAt
+        database().misc().upsertComm(
+            CommMessageEntity(
+                id = message.id,
+                contactId = message.contactId,
+                channel = message.channel,
+                direction = message.direction,
+                senderName = message.senderName,
+                body = message.text,
+                sentAt = message.sentAt,
+                status = message.status,
+                importKey = message.importKey?.ifBlank { null },
+                attachmentIds = message.attachmentIds,
+                sync = stamp(message.workspaceId, created, now),
+            ),
+        )
+        audit(message.workspaceId, "messages", message.id, "upsert")
+        return true
+    }
 
     suspend fun logMessage(workspaceId: String, contactId: String, messengerId: String, body: String, status: MessageStatus): String {
         val now = clock()
@@ -893,6 +926,7 @@ class CromanStore(
                 run("documents", "DELETE FROM documents WHERE owner_id = ? OR id = ?", arrayOf(id, id))
                 run("activities", "DELETE FROM activities WHERE contact_id = ? OR entity_id = ? OR id = ?", arrayOf(id, id, id))
                 run("message_log", "DELETE FROM message_log WHERE contact_id = ? OR id = ?", arrayOf(id, id))
+                run("messages", "DELETE FROM messages WHERE contact_id = ? OR id = ?", arrayOf(id, id))
                 run("contacts", "DELETE FROM contacts WHERE id = ?", arrayOf(id))
                 run("entities", "DELETE FROM entities WHERE id = ?", arrayOf(id))
             }
@@ -910,7 +944,7 @@ class CromanStore(
     private fun ContactEntity.toModel() = Contact(
         id, sync.workspaceId, fullName, phone, email, company,
         runCatching { ContactKind.valueOf(kind) }.getOrDefault(ContactKind.OTHER),
-        source, note, sync.createdAt, sync.updatedAt, sync.deletedAt, doNotContact,
+        source, note, sync.createdAt, sync.updatedAt, sync.deletedAt, doNotContact, telegram,
     )
 
     private fun EntityRecord.toRow() = EntityRow(
@@ -922,6 +956,11 @@ class CromanStore(
     )
 
     private fun ActivityEntity.toModel() = ActivityEntry(id, sync.workspaceId, kind, body, contactId, entityId, sync.createdAt)
+
+    private fun CommMessageEntity.toComm() = CommMessage(
+        id, sync.workspaceId, contactId, channel, direction, senderName, body, sentAt, status, importKey, attachmentIds,
+        sync.createdAt, sync.updatedAt,
+    )
 
     private fun MessageEntity.toModel() = MessageEntry(
         id, sync.workspaceId, contactId, messengerId, body,

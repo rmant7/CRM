@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +43,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.intelliverse.croman.R
-import com.intelliverse.croman.data.messenger.MessengerRegistry
 import com.intelliverse.croman.di.LocalAppContainer
 import com.intelliverse.croman.domain.Contact
 import com.intelliverse.croman.domain.ContactKind
@@ -164,28 +162,76 @@ fun ContactDetailScreen(
     val contact by store.observeContact(contactId).collectAsStateWithLifecycle(initialValue = null)
     val history by store.observeActivities(contactId, null).collectAsStateWithLifecycle(initialValue = emptyList())
     val messages by store.observeMessages(contactId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val comms by store.observeComm(contactId).collectAsStateWithLifecycle(initialValue = emptyList())
+    var pasteOpen by remember { mutableStateOf(false) }
+    var pasteBody by remember { mutableStateOf("") }
+    var pasteOut by remember { mutableStateOf(false) }
+    var chatText by remember { mutableStateOf<String?>(null) }
+    var chatZip by remember { mutableStateOf<java.io.File?>(null) }
+    var vcards by remember { mutableStateOf<List<com.intelliverse.croman.domain.VCardFile.Card>?>(null) }
+    val people by store.observeContacts(workspaceId, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
     val deals by store.observeLinked(workspaceId, "deal", "client", contactId).collectAsStateWithLifecycle(initialValue = emptyList())
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val openImport = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val name = uri.lastPathSegment?.substringAfterLast('/').orEmpty()
+            if (name.endsWith(".vcf", true)) {
+                val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }?.toString(Charsets.UTF_8).orEmpty()
+                vcards = com.intelliverse.croman.domain.VCardFile.parse(raw)
+            } else {
+                val zip = if (name.endsWith(".zip", true)) {
+                    val temp = java.io.File.createTempFile("chat", ".zip", context.cacheDir)
+                    context.contentResolver.openInputStream(uri)?.use { input -> temp.outputStream().use { input.copyTo(it) } }
+                    temp
+                } else null
+                chatZip = zip
+                chatText = if (zip != null) {
+                    java.util.zip.ZipFile(zip).use { archive ->
+                        val entry = archive.entries().asSequence().firstOrNull { !it.isDirectory && it.name.endsWith(".txt") }
+                        entry?.let { archive.getInputStream(it).use { stream -> stream.readBytes().toString(Charsets.UTF_8) } }.orEmpty()
+                    }
+                } else context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+            }
+        }
+    }
     val snackbar = remember { SnackbarHostState() }
     val lang = LocalLanguage.current
     var pending by remember { mutableStateOf<String?>(null) }
     var ask by remember { mutableStateOf(false) }
-    var telegram by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     var draft by remember(template.messageTemplates, lang) {
         mutableStateOf(template.messageTemplates.firstOrNull()?.body?.text(lang).orEmpty())
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    androidx.compose.runtime.LaunchedEffect(contactId) {
-        telegram = store.contactExtras(contactId)["telegram"].orEmpty()
-    }
     DisposableEffect(lifecycle, pending) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME && SendPrompt.showOnResume(pending)) ask = true
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
+    }
+    val transcript = chatText
+    if (transcript != null) {
+        com.intelliverse.croman.ui.share.ChatImportScreen(transcript, people, { log, me, chosen, newName ->
+            scope.launch {
+                com.intelliverse.croman.ui.importChat(container, workspaceId, log, me, chosen ?: contactId, newName, chatZip)
+                chatText = null
+                chatZip = null
+            }
+        }, { chatText = null; chatZip = null })
+        return
+    }
+    val cards = vcards
+    if (cards != null) {
+        com.intelliverse.croman.ui.share.VcfImportScreen(cards, {
+            scope.launch {
+                com.intelliverse.croman.ui.importCards(container, workspaceId, template.country, cards)
+                vcards = null
+            }
+        }, { vcards = null })
+        return
     }
     val person = contact
     val screenTitle = person?.fullName ?: template.contactProfile?.title?.let { l10n(it) } ?: stringResource(R.string.nav_contacts)
@@ -199,101 +245,31 @@ fun ContactDetailScreen(
             LoadingBox(Modifier.padding(padding))
             return@CrmScaffold
         }
-        val gateways = MessengerRegistry.forWorkspace(template.country, template.messengers)
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Text(stringResource(person.kind.label()), color = MaterialTheme.colorScheme.primary)
                 if (person.phone.isNotBlank()) Text(person.phone, style = TextStyle(textDirection = TextDirection.Ltr))
+                ContactActionRow(person, template.country, draft, scope, snackbar, context) { action ->
+                    if (action.id == "call") {
+                        store.addActivity(workspaceId, "call", context.getString(R.string.call_opened), person.id, null)
+                    } else if (action.id != "sms" && action.id != "email") {
+                        val id = store.logMessage(workspaceId, person.id, action.id, draft, MessageStatus.PREPARED)
+                        store.updateMessageStatus(id, MessageStatus.OPENED)
+                        pending = id
+                        ask = false
+                    } else {
+                        store.addActivity(workspaceId, action.id, draft.ifBlank { action.id }, person.id, null)
+                    }
+                }
                 if (person.email.isNotBlank()) Text(person.email, style = TextStyle(textDirection = TextDirection.Ltr))
+                if (person.telegram.isNotBlank()) Text(person.telegram, style = TextStyle(textDirection = TextDirection.Ltr))
                 if (person.company.isNotBlank()) Text(person.company)
                 if (person.note.isNotBlank()) Text(person.note)
-            }
-            item {
-                FilledTonalButton(onClick = {
-                    val url = PhoneLinks.dialUrl(person.phone)
-                    if (url == null) scope.launch { snackbar.showSnackbar(context.getString(R.string.phone_missing)) }
-                    else {
-                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-                        scope.launch { store.addActivity(workspaceId, "call", context.getString(R.string.call_opened), person.id, null) }
-                    }
-                }) { Text(stringResource(R.string.call)) }
+                comms.firstOrNull()?.let { Text(it.text, style = MaterialTheme.typography.bodyLarge) }
             }
             item { SectionTitle(stringResource(R.string.messages)) }
             item {
                 OutlinedTextField(draft, { draft = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.message_label)) }, minLines = 2)
-            }
-            item {
-                OutlinedTextField(
-                    telegram,
-                    { telegram = it },
-                    Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.telegram_username)) },
-                    singleLine = true,
-                )
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (gateways.any { it.id == "whatsapp" }) {
-                        TextButton(onClick = {
-                            when (val number = PhoneLinks.normalize(person.phone, template.country)) {
-                                is PhoneNumber.Rejected -> scope.launch {
-                                    val key = if (number.issue == PhoneIssue.AMBIGUOUS) R.string.phone_ambiguous else R.string.phone_missing
-                                    snackbar.showSnackbar(context.getString(key))
-                                }
-                                is PhoneNumber.Ready -> {
-                                    val url = PhoneLinks.whatsAppUrl(person.phone, draft, template.country) ?: return@TextButton
-                                    openMessenger(context, url, scope, snackbar) {
-                                        val id = store.logMessage(workspaceId, person.id, "whatsapp", draft, MessageStatus.PREPARED)
-                                        store.updateMessageStatus(id, MessageStatus.OPENED)
-                                        pending = id
-                                        ask = false
-                                    }
-                                }
-                            }
-                        }) { Text(stringResource(R.string.whatsapp)) }
-                    }
-                    if (gateways.any { it.id == "telegram" }) {
-                        TextButton(onClick = {
-                            val chat = PhoneLinks.telegramChatUrl(telegram)
-                            if (chat == null) {
-                                scope.launch { snackbar.showSnackbar(context.getString(R.string.telegram_need_username)) }
-                            } else {
-                                scope.launch { store.saveContactExtras(workspaceId, person.id, mapOf("telegram" to telegram.trim())) }
-                                openMessenger(context, chat, scope, snackbar) {
-                                    val id = store.logMessage(workspaceId, person.id, "telegram", draft, MessageStatus.PREPARED)
-                                    store.updateMessageStatus(id, MessageStatus.OPENED)
-                                    pending = id
-                                    ask = false
-                                }
-                            }
-                        }) { Text(stringResource(R.string.telegram_open)) }
-                        TextButton(onClick = {
-                            openMessenger(context, PhoneLinks.telegramUrl(draft), scope, snackbar) {
-                                val id = store.logMessage(workspaceId, person.id, "telegram_share", draft, MessageStatus.PREPARED)
-                                store.updateMessageStatus(id, MessageStatus.OPENED)
-                                pending = id
-                                ask = false
-                            }
-                        }) { Text(stringResource(R.string.telegram_share)) }
-                    }
-                    if (gateways.any { it.id == "max" }) {
-                        TextButton(onClick = {
-                            openMessenger(context, PhoneLinks.maxUrl(draft), scope, snackbar) {
-                                val id = store.logMessage(workspaceId, person.id, "max", draft, MessageStatus.PREPARED)
-                                store.updateMessageStatus(id, MessageStatus.OPENED)
-                                pending = id
-                                ask = false
-                            }
-                        }) { Text(stringResource(R.string.max_share)) }
-                    }
-                }
-            }
-            if (messages.isNotEmpty()) {
-                item {
-                    messages.take(5).forEach { message ->
-                        Text("${messengerLabel(message.messengerId)} · ${statusLabel(message.status)}", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
             }
             item {
                 SectionTitle(stringResource(R.string.linked_deals))
@@ -303,6 +279,25 @@ fun ContactDetailScreen(
                 TextButton(onClick = { onOpenEntity(deal.id) }) { Text(deal.title) }
             }
             item { SectionTitle(stringResource(R.string.history)) }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        val clip = (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                            .primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
+                        pasteBody = clip
+                        pasteOpen = true
+                    }) { Text(stringResource(R.string.paste_message)) }
+                    TextButton(onClick = { openImport.launch(arrayOf("text/plain", "application/zip", "text/vcard", "text/x-vcard", "*/*")) }) {
+                        Text(stringResource(R.string.import_chat))
+                    }
+                }
+            }
+            item {
+                comms.forEach { message -> CommLine(message) { url -> context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+                messages.forEach { message ->
+                    Text(messengerLabel(message.messengerId) + " · " + statusLabel(message.status) + " · " + message.body, style = MaterialTheme.typography.bodySmall)
+                }
+            }
             item { NoteComposer { body -> scope.launch { store.addActivity(workspaceId, "note", body, person.id, null) } } }
             item { HistoryBlock(history) }
         }
@@ -321,6 +316,37 @@ fun ContactDetailScreen(
                 }) { Text(stringResource(R.string.mark_sent)) }
             },
             dismissButton = { TextButton(onClick = { ask = false; pending = SendPrompt.clear() }) { Text(stringResource(R.string.not_sent)) } },
+        )
+    }
+    if (pasteOpen && person != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pasteOpen = false },
+            title = { Text(stringResource(R.string.paste_message)) },
+            text = {
+                Column {
+                    OutlinedTextField(pasteBody, { pasteBody = it }, Modifier.fillMaxWidth(), minLines = 3)
+                    Row {
+                        TextButton(onClick = { pasteOut = false }) { Text(stringResource(if (!pasteOut) R.string.direction_in else R.string.direction_in)) }
+                        TextButton(onClick = { pasteOut = true }) { Text(stringResource(R.string.direction_out)) }
+                        Text(if (pasteOut) stringResource(R.string.direction_out) else stringResource(R.string.direction_in))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val body = pasteBody.trim()
+                    pasteOpen = false
+                    if (body.isNotEmpty()) scope.launch {
+                        store.saveComm(
+                            com.intelliverse.croman.domain.CommMessage(
+                                Ids.new(), workspaceId, person.id, "manual", if (pasteOut) "out" else "in",
+                                if (pasteOut) "" else person.fullName, body, System.currentTimeMillis(), "saved", null, "", 0, 0,
+                            ),
+                        )
+                    }
+                }) { Text(stringResource(R.string.share_save)) }
+            },
+            dismissButton = { TextButton(onClick = { pasteOpen = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     if (confirm && person != null) {
@@ -347,7 +373,7 @@ private fun statusLabel(status: MessageStatus): String = when (status) {
     MessageStatus.SENT -> stringResource(R.string.message_status_sent)
 }
 
-private fun openMessenger(
+internal fun openMessenger(
     context: android.content.Context,
     url: String,
     scope: kotlinx.coroutines.CoroutineScope,
@@ -355,11 +381,29 @@ private fun openMessenger(
     onOpened: suspend () -> Unit,
 ) {
     val opened = runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        val action = when {
+            url.startsWith("tel:") -> Intent.ACTION_DIAL
+            url.startsWith("sms:") || url.startsWith("mailto:") -> Intent.ACTION_SENDTO
+            else -> Intent.ACTION_VIEW
+        }
+        context.startActivity(Intent(action, Uri.parse(url)))
     }.isSuccess
     scope.launch {
         if (opened) onOpened() else snackbar.showSnackbar(context.getString(R.string.action_failed))
     }
+}
+
+@Composable
+private fun CommLine(message: com.intelliverse.croman.domain.CommMessage, onOpen: (String) -> Unit) {
+    val link = com.intelliverse.croman.domain.MapLinks.find(message.text)
+    val direction = when (message.direction) {
+        "in" -> stringResource(R.string.direction_in)
+        "out" -> stringResource(R.string.direction_out)
+        else -> stringResource(R.string.direction_unknown)
+    }
+    Text(messengerLabel(message.channel) + " · " + direction + if (message.senderName.isBlank()) "" else " · " + message.senderName)
+    Text(message.text)
+    if (link != null) TextButton(onClick = { onOpen(link) }) { Text(link) }
 }
 
 @Composable
@@ -379,6 +423,7 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
     var note by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(ContactKind.BUYER) }
     var extras by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var telegramUser by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(contactId == null) }
     var error by remember { mutableStateOf(false) }
     val id = remember { contactId ?: Ids.new() }
@@ -386,7 +431,7 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
     androidx.compose.runtime.LaunchedEffect(contactId) {
         if (contactId != null) {
             store.getContact(contactId)?.let {
-                name = it.fullName; phone = it.phone; email = it.email; company = it.company; source = it.source; note = it.note; kind = it.kind
+                name = it.fullName; phone = it.phone; email = it.email; company = it.company; source = it.source; note = it.note; kind = it.kind; telegramUser = it.telegram
             }
             extras = store.contactExtras(contactId)
             ready = true
@@ -404,6 +449,7 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
                         id, workspaceId, name, phone, email, company, kind, source, note,
                         System.currentTimeMillis(), System.currentTimeMillis(),
                         doNotContact = keepStop,
+                        telegram = telegramUser,
                     ),
                 )
                 val extraKeys = template.contactProfile?.fields?.map { it.key }?.filter { it !in CORE_CONTACT_KEYS }.orEmpty()
@@ -428,7 +474,8 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
             }
             item { OutlinedTextField(name, { name = it; error = false }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_name)) }, isError = error, singleLine = true) }
             if (show("phone")) item { LtrField(phone, { phone = it }, stringResource(R.string.contact_phone)) }
-            if (show("email")) item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
+            item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
+            item { LtrField(telegramUser, { telegramUser = it }, stringResource(R.string.telegram_username)) }
             if (show("company")) item { OutlinedTextField(company, { company = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_company)) }, singleLine = true) }
             if (show("kind")) item { CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), ContactKind.entries, { stringResource(it.label()) }) { kind = it } }
             if (show("source")) item { OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_source)) }, singleLine = true) }

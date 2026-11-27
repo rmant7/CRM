@@ -43,6 +43,7 @@ object BackupMerger {
         "catalog_items",
         "documents",
         "message_log",
+        "messages",
         "change_log",
         "view_configs",
     )
@@ -112,6 +113,7 @@ object BackupMerger {
             }
         }
         check("message_log", "contact_id", "contacts")
+        check("messages", "contact_id", "contacts")
         check("calendar_events", "contact_id", "contacts")
         check("calendar_events", "entity_id", "entities")
         return problems
@@ -408,6 +410,7 @@ object BackupMerger {
         "payments" -> com.intelliverse.croman.domain.L10n("Payments", "Платежи", "תשלומים")
         "documents" -> com.intelliverse.croman.domain.L10n("Photos", "Фото", "תמונות")
         "message_log" -> com.intelliverse.croman.domain.L10n("Messages", "Сообщения", "הודעות")
+        "messages" -> com.intelliverse.croman.domain.L10n("History", "История", "היסטוריה")
         "field_values" -> com.intelliverse.croman.domain.L10n("Fields", "Поля", "שדות")
         "calendar_events" -> com.intelliverse.croman.domain.L10n("Calendar", "Календарь", "יומן")
         "entity_types" -> com.intelliverse.croman.domain.L10n("Record types", "Типы записей", "סוגי רשומות")

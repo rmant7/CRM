@@ -123,6 +123,7 @@ data class ContactEntity(
     val note: String,
     @ColumnInfo(name = "search_text") val searchText: String,
     @ColumnInfo(name = "do_not_contact", defaultValue = "0") val doNotContact: Boolean = false,
+    @ColumnInfo(name = "telegram", defaultValue = "''") val telegram: String = "",
 )
 
 @Entity(
@@ -253,6 +254,24 @@ data class DocumentEntity(
     val mime: String,
     val title: String,
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
+)
+
+@Entity(
+    tableName = "messages",
+    indices = [Index("workspace_id"), Index("contact_id"), Index("import_key"), Index("sent_at")],
+)
+data class CommMessageEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "contact_id") val contactId: String,
+    val channel: String,
+    val direction: String,
+    @ColumnInfo(name = "sender_name") val senderName: String,
+    val body: String,
+    @ColumnInfo(name = "sent_at") val sentAt: Long,
+    val status: String,
+    @ColumnInfo(name = "import_key") val importKey: String?,
+    @ColumnInfo(name = "attachment_ids") val attachmentIds: String,
+    @Embedded val sync: SyncStamp,
 )
 
 @Entity(tableName = "message_log", indices = [Index("workspace_id"), Index("contact_id"), Index("status")])
@@ -496,6 +515,15 @@ interface MiscDao {
 
     @Query("SELECT * FROM change_log WHERE workspace_id = :workspaceId AND changed_at > :since ORDER BY changed_at")
     suspend fun changesSince(workspaceId: String, since: Long): List<ChangeLogEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertComm(entity: CommMessageEntity)
+
+    @Query("SELECT * FROM messages WHERE contact_id = :contactId AND deleted_at IS NULL ORDER BY sent_at DESC")
+    fun comms(contactId: String): Flow<List<CommMessageEntity>>
+
+    @Query("SELECT * FROM messages WHERE workspace_id = :workspaceId AND import_key = :key AND deleted_at IS NULL LIMIT 1")
+    suspend fun commByKey(workspaceId: String, key: String): CommMessageEntity?
 }
 
 @Database(
@@ -516,10 +544,11 @@ interface MiscDao {
         CatalogEntity::class,
         DocumentEntity::class,
         MessageEntity::class,
+        CommMessageEntity::class,
         ChangeLogEntity::class,
         ViewConfigEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class CromanDatabase : RoomDatabase() {
@@ -536,7 +565,7 @@ abstract class CromanDatabase : RoomDatabase() {
 
         fun create(context: Context): CromanDatabase =
             Room.databaseBuilder(context.applicationContext, CromanDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }
@@ -560,5 +589,43 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE contacts ADD COLUMN do_not_contact INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `messages` (`id` TEXT NOT NULL, `contact_id` TEXT NOT NULL, `channel` TEXT NOT NULL, " +
+                "`direction` TEXT NOT NULL, `sender_name` TEXT NOT NULL, `body` TEXT NOT NULL, `sent_at` INTEGER NOT NULL, " +
+                "`status` TEXT NOT NULL, `import_key` TEXT, `attachment_ids` TEXT NOT NULL, `workspace_id` TEXT NOT NULL, " +
+                "`owner_user_id` TEXT NOT NULL, `created_by_user_id` TEXT NOT NULL, `updated_by_user_id` TEXT NOT NULL, " +
+                "`assigned_to_user_id` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, " +
+                "PRIMARY KEY(`id`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_workspace_id` ON `messages` (`workspace_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_contact_id` ON `messages` (`contact_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_import_key` ON `messages` (`import_key`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_sent_at` ON `messages` (`sent_at`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `contacts_new` (`id` TEXT NOT NULL, `full_name` TEXT NOT NULL, `phone` TEXT NOT NULL, " +
+                "`email` TEXT NOT NULL, `company` TEXT NOT NULL, `kind` TEXT NOT NULL, `source` TEXT NOT NULL, `note` TEXT NOT NULL, " +
+                "`search_text` TEXT NOT NULL, `do_not_contact` INTEGER NOT NULL DEFAULT 0, `telegram` TEXT NOT NULL DEFAULT '', " +
+                "`workspace_id` TEXT NOT NULL, `owner_user_id` TEXT NOT NULL, `created_by_user_id` TEXT NOT NULL, " +
+                "`updated_by_user_id` TEXT NOT NULL, `assigned_to_user_id` TEXT, `created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, PRIMARY KEY(`id`))",
+        )
+        db.execSQL(
+            "INSERT INTO contacts_new (id, full_name, phone, email, company, kind, source, note, search_text, do_not_contact, telegram, " +
+                "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at) " +
+                "SELECT id, full_name, phone, email, company, kind, source, note, search_text, do_not_contact, " +
+                "COALESCE((SELECT value_text FROM field_values WHERE entity_id = contacts.id AND field_key = 'telegram' AND deleted_at IS NULL LIMIT 1), ''), " +
+                "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at FROM contacts",
+        )
+        db.execSQL("DROP TABLE contacts")
+        db.execSQL("ALTER TABLE contacts_new RENAME TO contacts")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_contacts_workspace_id` ON `contacts` (`workspace_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_contacts_deleted_at` ON `contacts` (`deleted_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_contacts_search_text` ON `contacts` (`search_text`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_contacts_updated_at` ON `contacts` (`updated_at`)")
     }
 }
