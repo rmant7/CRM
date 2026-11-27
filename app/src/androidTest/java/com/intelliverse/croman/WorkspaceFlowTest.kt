@@ -173,7 +173,7 @@ class WorkspaceFlowTest {
             putExtra(Intent.EXTRA_TEXT, "Apartment on Herzl")
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        rule.activity.runOnUiThread { rule.activity.onNewIntent(send) }
+        rule.activity.runOnUiThread { rule.activity.acceptIncoming(send) }
         val title = rule.activity.getString(R.string.share_title)
         rule.waitUntil(30_000) { rule.onAllNodesWithText(title).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Apartment on Herzl").assertIsDisplayed()
