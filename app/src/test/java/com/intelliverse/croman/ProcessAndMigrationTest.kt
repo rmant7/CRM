@@ -133,15 +133,21 @@ class SchemaMigrationTest {
                 "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at, do_not_contact) " +
                 "VALUES ('c1', 'Maya', '', '', '', 'OTHER', '', '', 'maya', 'ws', 'u', 'u', 'u', NULL, 1, 1, NULL, 0)",
         )
+        db.execSQL(
+            "INSERT INTO field_values (id, entity_id, field_key, value_text, value_number, value_money, value_date, value_bool, value_ref, value_json, " +
+                "workspace_id, owner_user_id, created_by_user_id, updated_by_user_id, assigned_to_user_id, created_at, updated_at, deleted_at) " +
+                "VALUES ('c1:telegram', 'c1', 'telegram', 'maya_levi', NULL, NULL, NULL, NULL, NULL, NULL, 'ws', 'u', 'u', 'u', NULL, 1, 1, NULL)",
+        )
         db.close()
         val migrated = helper.runMigrationsAndValidate(name, 4, true, com.intelliverse.croman.data.local.MIGRATION_3_4)
         migrated.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'messages'").use { cursor ->
             assertTrue(cursor.moveToFirst())
         }
-        migrated.query("SELECT full_name, do_not_contact FROM contacts WHERE id = 'c1'").use { cursor ->
+        migrated.query("SELECT full_name, do_not_contact, telegram FROM contacts WHERE id = 'c1'").use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals("Maya", cursor.getString(0))
             assertEquals(0, cursor.getInt(1))
+            assertEquals("maya_levi", cursor.getString(2))
         }
         migrated.close()
     }

@@ -42,7 +42,7 @@ Consultations and coaching (0.5.0) sit on the existing appointment engine. The c
 
 0.6.0 adds a manual Android share into a client and honest messenger actions. WhatsApp opens only from a number that can be written internationally. Telegram opens a chat only from a saved username. System backup of the database is off; the in-app zip remains the export. Official messenger APIs, a server, sync, and AI are later and are not in this build.
 
-0.7.0 turns that share into a local history. Messages live in their own table (schema 4). A WhatsApp export, a VCF card, a map link, or clipboard text can become messages on a client. Re-importing the same export does not duplicate it. Large videos are stored with the other files, so they are part of the zip the user exports. The Telegram username moves onto the contact in that same migration and is edited on the client card. Call, SMS, WhatsApp, Telegram, and Email are one icon row beside the phone.
+0.7.0 turns that share into a local history. 0.7.1 is the published build of that work, with the chat-import preview reachable in the device screenshots. Messages live in their own table (schema 4). A WhatsApp export, a VCF card, a map link, or clipboard text can become messages on a client. Re-importing the same export does not duplicate it. Large videos are stored with the other files, so they are part of the zip the user exports. The Telegram username moves onto the contact in that same migration and is edited on the client card. Call, SMS, WhatsApp, Telegram, and Email are one icon row beside the phone.
 
 ---
 
