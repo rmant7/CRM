@@ -38,8 +38,11 @@ pull_shots() {
   for name in $names; do
     case "$name" in
       *.png)
-        adb exec-out run-as "$PKG" cat "files/screenshots/$name" >"$dest/$name" || true
-        if [ -s "$dest/$name" ]; then copied=1; fi
+        adb exec-out run-as "$PKG" cat "files/screenshots/$name" >"$dest/$name" 2>/dev/null || true
+        if ! head -c 8 "$dest/$name" 2>/dev/null | grep -q $'\x89PNG'; then
+          adb shell run-as "$PKG" base64 "files/screenshots/$name" 2>/dev/null | tr -d '\r\n' | base64 -d >"$dest/$name" || true
+        fi
+        if head -c 8 "$dest/$name" 2>/dev/null | grep -q $'\x89PNG'; then copied=1; fi
         ;;
     esac
   done

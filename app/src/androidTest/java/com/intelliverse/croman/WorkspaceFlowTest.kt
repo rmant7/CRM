@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -144,10 +145,13 @@ class WorkspaceFlowTest {
         rule.waitUntil(30_000) { visible(cardTitle).isNotEmpty() && shown(next) }
         rule.waitForIdle()
         DeviceShots.save("${localeArg()}-consultation")
-        repeat(2) { pressBack() }
         val people = template.contactProfile!!.title
-        rule.waitUntil(30_000) { visible(people).isNotEmpty() }
-        rule.onNodeWithText(visible(people)).performClick()
+        for (attempt in 0 until 4) {
+            if (shown(people)) break
+            pressBack()
+        }
+        rule.waitUntil(30_000) { shown(people) }
+        rule.onNodeWithText(visible(people).ifBlank { people.text("en") }, substring = true).performClick()
         val stop = rule.activity.getString(R.string.do_not_contact)
         rule.waitUntil(30_000) { rule.onAllNodesWithText(stop).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Maya Levi").performClick()
@@ -177,7 +181,8 @@ class WorkspaceFlowTest {
     }
 
     private fun pressBack() {
-        rule.activity.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        runCatching { Espresso.closeSoftKeyboard() }
+        Espresso.pressBack()
         rule.waitForIdle()
     }
 
