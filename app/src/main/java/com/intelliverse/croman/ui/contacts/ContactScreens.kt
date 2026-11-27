@@ -50,6 +50,10 @@ import com.intelliverse.croman.domain.Contact
 import com.intelliverse.croman.domain.ContactKind
 import com.intelliverse.croman.domain.Ids
 import com.intelliverse.croman.domain.MessageStatus
+import com.intelliverse.croman.domain.PhoneIssue
+import com.intelliverse.croman.domain.PhoneLinks
+import com.intelliverse.croman.domain.PhoneNumber
+import com.intelliverse.croman.domain.SendPrompt
 import com.intelliverse.croman.domain.TemplateFile
 import com.intelliverse.croman.domain.TextFold
 import com.intelliverse.croman.ui.components.AddFab
@@ -167,14 +171,18 @@ fun ContactDetailScreen(
     val lang = LocalLanguage.current
     var pending by remember { mutableStateOf<String?>(null) }
     var ask by remember { mutableStateOf(false) }
+    var telegram by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     var draft by remember(template.messageTemplates, lang) {
         mutableStateOf(template.messageTemplates.firstOrNull()?.body?.text(lang).orEmpty())
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.LaunchedEffect(contactId) {
+        telegram = store.contactExtras(contactId)["telegram"].orEmpty()
+    }
     DisposableEffect(lifecycle, pending) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && pending != null) ask = true
+            if (event == Lifecycle.Event.ON_RESUME && SendPrompt.showOnResume(pending)) ask = true
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
@@ -202,9 +210,12 @@ fun ContactDetailScreen(
             }
             item {
                 FilledTonalButton(onClick = {
-                    val url = com.intelliverse.croman.domain.PhoneLinks.dialUrl(person.phone)
+                    val url = PhoneLinks.dialUrl(person.phone)
                     if (url == null) scope.launch { snackbar.showSnackbar(context.getString(R.string.phone_missing)) }
-                    else context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                    else {
+                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                        scope.launch { store.addActivity(workspaceId, "call", context.getString(R.string.call_opened), person.id, null) }
+                    }
                 }) { Text(stringResource(R.string.call)) }
             }
             item { SectionTitle(stringResource(R.string.messages)) }
@@ -212,25 +223,68 @@ fun ContactDetailScreen(
                 OutlinedTextField(draft, { draft = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.message_label)) }, minLines = 2)
             }
             item {
+                OutlinedTextField(
+                    telegram,
+                    { telegram = it },
+                    Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.telegram_username)) },
+                    singleLine = true,
+                )
+            }
+            item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    gateways.forEach { gateway ->
+                    if (gateways.any { it.id == "whatsapp" }) {
                         TextButton(onClick = {
-                            val url = gateway.shareUrl(person.phone, draft)
-                            scope.launch {
-                                val id = store.logMessage(workspaceId, person.id, gateway.id, draft, MessageStatus.PREPARED)
-                                if (url == null) {
-                                    snackbar.showSnackbar(context.getString(R.string.phone_missing))
-                                } else {
-                                    val opened = runCatching {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                    }.isSuccess
-                                    if (opened) {
+                            when (val number = PhoneLinks.normalize(person.phone, template.country)) {
+                                is PhoneNumber.Rejected -> scope.launch {
+                                    val key = if (number.issue == PhoneIssue.AMBIGUOUS) R.string.phone_ambiguous else R.string.phone_missing
+                                    snackbar.showSnackbar(context.getString(key))
+                                }
+                                is PhoneNumber.Ready -> {
+                                    val url = PhoneLinks.whatsAppUrl(person.phone, draft, template.country) ?: return@TextButton
+                                    openMessenger(context, url, scope, snackbar) {
+                                        val id = store.logMessage(workspaceId, person.id, "whatsapp", draft, MessageStatus.PREPARED)
                                         store.updateMessageStatus(id, MessageStatus.OPENED)
                                         pending = id
-                                    } else snackbar.showSnackbar(context.getString(R.string.action_failed))
+                                        ask = false
+                                    }
                                 }
                             }
-                        }) { Text(messengerLabel(gateway.id)) }
+                        }) { Text(stringResource(R.string.whatsapp)) }
+                    }
+                    if (gateways.any { it.id == "telegram" }) {
+                        TextButton(onClick = {
+                            val chat = PhoneLinks.telegramChatUrl(telegram)
+                            if (chat == null) {
+                                scope.launch { snackbar.showSnackbar(context.getString(R.string.telegram_need_username)) }
+                            } else {
+                                scope.launch { store.saveContactExtras(workspaceId, person.id, mapOf("telegram" to telegram.trim())) }
+                                openMessenger(context, chat, scope, snackbar) {
+                                    val id = store.logMessage(workspaceId, person.id, "telegram", draft, MessageStatus.PREPARED)
+                                    store.updateMessageStatus(id, MessageStatus.OPENED)
+                                    pending = id
+                                    ask = false
+                                }
+                            }
+                        }) { Text(stringResource(R.string.telegram_open)) }
+                        TextButton(onClick = {
+                            openMessenger(context, PhoneLinks.telegramUrl(draft), scope, snackbar) {
+                                val id = store.logMessage(workspaceId, person.id, "telegram_share", draft, MessageStatus.PREPARED)
+                                store.updateMessageStatus(id, MessageStatus.OPENED)
+                                pending = id
+                                ask = false
+                            }
+                        }) { Text(stringResource(R.string.telegram_share)) }
+                    }
+                    if (gateways.any { it.id == "max" }) {
+                        TextButton(onClick = {
+                            openMessenger(context, PhoneLinks.maxUrl(draft), scope, snackbar) {
+                                val id = store.logMessage(workspaceId, person.id, "max", draft, MessageStatus.PREPARED)
+                                store.updateMessageStatus(id, MessageStatus.OPENED)
+                                pending = id
+                                ask = false
+                            }
+                        }) { Text(stringResource(R.string.max_share)) }
                     }
                 }
             }
@@ -255,18 +309,18 @@ fun ContactDetailScreen(
     }
     if (ask && pending != null) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { ask = false },
+            onDismissRequest = { ask = false; pending = SendPrompt.clear() },
             title = { Text(stringResource(R.string.mark_sent_title)) },
             text = { Text(stringResource(R.string.mark_sent_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     val id = pending
                     ask = false
-                    pending = null
+                    pending = SendPrompt.clear()
                     if (id != null) scope.launch { store.updateMessageStatus(id, MessageStatus.SENT) }
                 }) { Text(stringResource(R.string.mark_sent)) }
             },
-            dismissButton = { TextButton(onClick = { ask = false }) { Text(stringResource(R.string.not_sent)) } },
+            dismissButton = { TextButton(onClick = { ask = false; pending = SendPrompt.clear() }) { Text(stringResource(R.string.not_sent)) } },
         )
     }
     if (confirm && person != null) {
@@ -276,9 +330,14 @@ fun ContactDetailScreen(
 
 @Composable
 private fun messengerLabel(id: String): String = when (id) {
-    "telegram" -> stringResource(R.string.telegram)
-    "max" -> stringResource(R.string.max_app)
-    else -> stringResource(R.string.whatsapp)
+    "telegram" -> stringResource(R.string.telegram_open)
+    "telegram_share" -> stringResource(R.string.telegram_share)
+    "max" -> stringResource(R.string.max_share)
+    "call" -> stringResource(R.string.call)
+    "share" -> stringResource(R.string.share_channel)
+    "note" -> stringResource(R.string.history)
+    "whatsapp" -> stringResource(R.string.whatsapp)
+    else -> stringResource(R.string.share_channel)
 }
 
 @Composable
@@ -288,10 +347,25 @@ private fun statusLabel(status: MessageStatus): String = when (status) {
     MessageStatus.SENT -> stringResource(R.string.message_status_sent)
 }
 
+private fun openMessenger(
+    context: android.content.Context,
+    url: String,
+    scope: kotlinx.coroutines.CoroutineScope,
+    snackbar: SnackbarHostState,
+    onOpened: suspend () -> Unit,
+) {
+    val opened = runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }.isSuccess
+    scope.launch {
+        if (opened) onOpened() else snackbar.showSnackbar(context.getString(R.string.action_failed))
+    }
+}
+
 @Composable
 private fun HistoryBlock(entries: List<com.intelliverse.croman.domain.ActivityEntry>) {
     if (entries.isEmpty()) Text(stringResource(R.string.empty_notes), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    entries.forEach { Text("${it.kind}: ${it.body}") }
+    entries.forEach { Text(messengerLabel(it.kind) + ": " + it.body) }
 }
 
 @Composable

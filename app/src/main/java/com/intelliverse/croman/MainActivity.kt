@@ -25,11 +25,13 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private var openTaskId by mutableStateOf<String?>(null)
+    private var incoming by mutableStateOf<com.intelliverse.croman.ui.share.IncomingShare?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         openTaskId = intent?.getStringExtra(EXTRA_TASK_ID)
+        incoming = com.intelliverse.croman.ui.share.ShareIntents.from(intent, contentResolver, referrer)
         val container = (application as CromanApp).container
         if (intent?.getBooleanExtra(EXTRA_BENCHMARK, false) == true) {
             CoroutineScope(Dispatchers.IO).launch {
@@ -46,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             CompositionLocalProvider(LocalAppContainer provides container) {
                 CromanTheme {
-                    Surface(Modifier.fillMaxSize()) { CromanRoot(openTaskId) }
+                    Surface(Modifier.fillMaxSize()) { CromanRoot(openTaskId, incoming) { incoming = null } }
                 }
             }
         }
@@ -56,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         openTaskId = intent.getStringExtra(EXTRA_TASK_ID)
+        incoming = com.intelliverse.croman.ui.share.ShareIntents.from(intent, contentResolver, referrer)
     }
 
     companion object {

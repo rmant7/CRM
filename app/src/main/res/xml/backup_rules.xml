@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android backup must not copy the CRM database or files. The in-app zip is the only export. -->
 <full-backup-content>
-    <include domain="database" path="croman.db" />
-    <include domain="file" path="photos" />
+    <exclude domain="database" path="croman.db" />
+    <exclude domain="database" path="croman.db-wal" />
+    <exclude domain="database" path="croman.db-shm" />
+    <exclude domain="file" path="photos" />
+    <exclude domain="sharedpref" path="." />
 </full-backup-content>

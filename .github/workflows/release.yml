@@ -55,15 +55,17 @@ jobs:
           KEY_ALIAS: ${{ secrets.CROMAN_KEY_ALIAS }}
         run: |
           set -euo pipefail
+          test -f signing/croman-test.keystore
+          echo "The test APK uses the committed test certificate and can update 0.5.0."
           if [ -n "${KEYSTORE_B64}" ] && [ -n "${STORE_PASSWORD}" ] && [ -n "${KEY_PASSWORD}" ] && [ -n "${KEY_ALIAS}" ]; then
             printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/croman-release.keystore"
             echo "CROMAN_KEYSTORE=$RUNNER_TEMP/croman-release.keystore" >> "$GITHUB_ENV"
             echo "CROMAN_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
             echo "CROMAN_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
             echo "CROMAN_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "HAS_PRIVATE_RELEASE=1" >> "$GITHUB_ENV"
           else
-            test -f signing/croman-test.keystore
-            echo "Using the committed test keystore. No secret keystore is configured."
+            echo "No private release key. assembleRelease will not run."
           fi
 
       - name: Test
@@ -79,15 +81,24 @@ jobs:
         run: |
           set -euo pipefail
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace --no-daemon
+          # Debug must stay on the test certificate even when a private key is present.
+          env -u CROMAN_KEYSTORE -u CROMAN_STORE_PASSWORD -u CROMAN_KEY_PASSWORD -u CROMAN_KEY_ALIAS \
+            ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace --no-daemon
+          if [ "${HAS_PRIVATE_RELEASE:-}" = "1" ]; then
+            ./gradlew assembleRelease --stacktrace --no-daemon
+          fi
+          mkdir -p staged-apks
+          cp app/build/outputs/apk/debug/app-debug.apk staged-apks/
+          cp app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk staged-apks/
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk staged-apks/
+          fi
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: croman-apk
-          path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          path: staged-apks/
           retention-days: 7
 
   emulator:
@@ -430,10 +441,18 @@ jobs:
           else
             TAG="v$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
           fi
-          APP_APK=$(find dist -type f -name 'app-debug.apk' | head -n 1)
+          RELEASE_APK=$(find dist -type f -name 'app-release.apk' | head -n 1 || true)
+          if [ -n "$RELEASE_APK" ]; then
+            APP_APK="$RELEASE_APK"
+            ASSET="croman-${TAG}.apk"
+          else
+            APP_APK=$(find dist -type f -name 'app-debug.apk' | head -n 1)
+            ASSET="croman-${TAG}-test.apk"
+          fi
           test -n "$APP_APK"
-          cp "$APP_APK" "croman-${TAG}.apk"
-          SHA="$(sha256sum "croman-${TAG}.apk" | awk '{print $1}')"
+          cp "$APP_APK" "$ASSET"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          SHA="$(sha256sum "$ASSET" | awk '{print $1}')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           python3 - <<'PY'
@@ -463,6 +482,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.apk.outputs.tag }}
           RELEASE_SHA: ${{ steps.apk.outputs.sha }}
+          RELEASE_ASSET: ${{ steps.apk.outputs.asset }}
         run: |
           set -euo pipefail
           export FTL_NOTE="$(tr '\n' ' ' < ftl-note.txt | sed 's/[[:space:]]*$//')"
@@ -476,7 +496,7 @@ jobs:
           sha = os.environ["RELEASE_SHA"]
           print(f"""CRoMan {tag} — offline CRM. Signed with a stable test key. This build does not install over 0.2.0 or 0.2.1; uninstall those once. Later builds that use the same key update in place. Mantel CRM 0.1 stays a separate app.
 
-          The APK is debug-signed so the build does not need repository secrets. Android 6.0 or newer. Allow installation from this source, then install.
+          This file is the test-signed build. It uses the same test certificate as 0.5.0 and installs over it. A Release build is produced only when private signing secrets are set, and that Release build refuses the test key. Android 6.0 or newer.
 
           SHA-256: {sha}
 
@@ -490,7 +510,7 @@ jobs:
 
           CRoMan {tag} — офлайн CRM. Подпись стабильным тестовым ключом. Эта сборка не ставится поверх 0.2.0 и 0.2.1: их нужно удалить один раз. Следующие сборки с тем же ключом обновляются на месте. Версия 0.1 остаётся отдельным приложением.
 
-          APK подписан отладочным ключом, секреты репозитория не нужны. Android 6.0+. Разрешите установку из этого источника.
+          Это тестовая подпись, тот же сертификат, что у 0.5.0, поэтому обновление ставится поверх. Release без приватного ключа не собирается. Android 6.0+.
 
           SHA-256: {sha}
 
@@ -503,10 +523,10 @@ jobs:
           PY
           )
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "croman-${RELEASE_TAG}.apk" --clobber
+            gh release upload "$RELEASE_TAG" "$RELEASE_ASSET" --clobber
             gh release edit "$RELEASE_TAG" --notes "$NOTES" --title "$RELEASE_TAG"
           else
-            gh release create "$RELEASE_TAG" "croman-${RELEASE_TAG}.apk" \
+            gh release create "$RELEASE_TAG" "$RELEASE_ASSET" \
               --title "$RELEASE_TAG" \
               --notes "$NOTES" \
               --target "${GITHUB_SHA}"

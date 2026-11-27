@@ -90,9 +90,9 @@
     <string name="mark_sent_title">ההודעה נשלחה?</string>
     <string name="max_app">MAX</string>
     <string name="message_label">הודעה</string>
-    <string name="message_status_opened">המסנג׳ר נפתח</string>
-    <string name="message_status_prepared">הוכן</string>
-    <string name="message_status_sent">נשלח</string>
+    <string name="message_status_opened">האפליקציה נפתחה, השליחה לא אושרה</string>
+    <string name="message_status_prepared">הוכן, לא נפתח</string>
+    <string name="message_status_sent">סימנתם שנשלח</string>
     <string name="messages">הודעות</string>
     <string name="nav_contacts">לקוחות</string>
     <string name="nav_tasks">משימות</string>
@@ -190,4 +190,23 @@
     <string name="workspace_name">שם הסביבה</string>
     <string name="workspace_rename">שינוי שם</string>
     <string name="workspace_separate">סוג זה כבר קיים. בחרו שם אחר כדי להוסיף עוד אחת.</string>
+    <string name="phone_ambiguous">הוסיפו קידומת מדינה. אי אפשר לקרוא את המספר באופן חד-משמעי.</string>
+    <string name="telegram_username">שם משתמש בטלגרם</string>
+    <string name="telegram_open">פתיחת צ׳אט בטלגרם</string>
+    <string name="telegram_share">שיתוף טקסט בטלגרם</string>
+    <string name="telegram_need_username">מספר טלפון לא פותח צ׳אט בטלגרם. הוסיפו שם משתמש.</string>
+    <string name="max_share">שיתוף ב-MAX</string>
+    <string name="call_opened">חייגן הטלפון נפתח</string>
+    <string name="share_title">שמירה ב-CRoMan</string>
+    <string name="share_save">שמירה</string>
+    <string name="share_new_client">לקוח חדש</string>
+    <string name="share_pick_client">לקוח</string>
+    <string name="share_note">הערה</string>
+    <string name="share_task">יצירת תזכורת</string>
+    <string name="share_unsupported">אי אפשר לשמור את סוג הקובץ: %1$s</string>
+    <string name="share_from_whatsapp">מוואטסאפ</string>
+    <string name="share_from_telegram">מטלגרם</string>
+    <string name="share_from_other">מאפליקציה אחרת</string>
+    <string name="share_channel">שותף</string>
+    <string name="share_no_workspace">צרו סביבת עבודה, ואז שתפו שוב.</string>
 </resources>

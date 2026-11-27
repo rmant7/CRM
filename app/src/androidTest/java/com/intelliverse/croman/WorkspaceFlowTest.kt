@@ -1,5 +1,6 @@
 package com.intelliverse.croman
 
+import android.content.Intent
 import android.view.View
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -162,6 +163,21 @@ class WorkspaceFlowTest {
         bringIntoView("X1")
         DeviceShots.save("${localeArg()}-outreach")
         rule.onNodeWithText("X1", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun test05_shareTargetOpensTheImportScreen() {
+        val send = Intent(rule.activity, MainActivity::class.java).apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, "Apartment on Herzl")
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        rule.activity.runOnUiThread { rule.activity.onNewIntent(send) }
+        val title = rule.activity.getString(R.string.share_title)
+        rule.waitUntil(30_000) { rule.onAllNodesWithText(title).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText("Apartment on Herzl").assertIsDisplayed()
+        DeviceShots.save("${localeArg()}-share")
     }
 
     private fun bringIntoView(text: String) {
