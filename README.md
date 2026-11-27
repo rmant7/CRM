@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.5.0 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Consultations use the appointment engine: a structured card, an outreach classifier, and a CSV export. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.6.0 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Share text or files from another app into a client. Consultations use the appointment engine. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -9,7 +9,8 @@ Copyright 2026 Roman Mantelmakher. Apache License 2.0.
 ## What you can do
 
 - Switch workspaces. Creating one asks for a name, and a second workspace of the same template needs its own name. You can rename or hide a workspace. The **Realtor** template covers clients, listings (with photos), a deal pipeline (list and board), tasks with local reminders, notes, search, and a home summary. The **Tutor** template uses student fields and lessons (date, duration, weekly repeat, status, payment, package balance).
-- Call, and open WhatsApp, Telegram, or MAX with a message you wrote. Which buttons appear depends on the workspace country adapter. The app records prepared / messenger opened / sent (you confirm). It never reads replies.
+- Call, open WhatsApp for a number that can be written in international form, or open a Telegram chat when you have saved a username. A phone number does not open a Telegram chat. Sharing text into Telegram is labeled as sharing, not as a message to that person. The history says the app was opened, and “sent” only after you confirm. The app never reads replies.
+- Share text, links, images, audio, or documents from another app into CRoMan and attach them to a client. This is a manual share, not access to the whole chat.
 - Export or import one zip (database + photos) through the system file picker. A password is optional. If you set one and forget it, that backup cannot be recovered. Import can replace everything or merge into the data already on the device (the default when moving records from one person to another). Merging the same backup twice changes nothing. This merge is the step before a later LAN sync.
 - English, Russian, and Hebrew, with right-to-left layout for Hebrew.
 
@@ -35,7 +36,7 @@ git push origin v0.3.0
 
 ## Signing
 
-Every release is signed with `signing/croman-test.keystore` (alias `croman`, store password `croman-test`, key password `croman-test`). This is a **test** key committed so CI always produces the same certificate. It is not a Play Store / production key. If the file is missing, the build fails. It does not generate a random debug key.
+The published tag build is test-signed with `signing/croman-test.keystore` (alias `croman`). The same certificate as 0.5.0, so it installs over that build. It is not a Play Store key. `assembleRelease` fails unless the private key environment variables are set. It does not fall back to the test key. If the test key file is missing, the test build fails. It does not generate a random debug key.
 
 0.2.0 and 0.2.1 were signed by whatever debug key the GitHub-hosted runner created for that job. v0.2.0's APK was deleted by the keep-latest workflow, so the two certificates cannot be compared anymore. v0.2.1's certificate is the Android debug identity (`CN=Android Debug`) with SHA-256 `c5d2660a52ee5d181095e580dc0185442267299148ed670d2826944692302bb0`. A fresh runner does not reuse that key. **Uninstall 0.2.0 and 0.2.1 once before installing 0.2.2.** Later builds that use this same test key install over 0.2.2.
 
@@ -58,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.4.0 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.6.0 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Текст и файлы из другого приложения можно сохранить клиенту через «Поделиться». Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 
@@ -67,7 +68,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Возможности
 
 - Несколько рабочих пространств. При создании нужно имя, второе пространство того же шаблона — со своим именем. Пространство можно переименовать или скрыть. Шаблон **Риелтор**: клиенты, объекты с фото, воронка сделок (список и доска), задачи с локальными напоминаниями, заметки, поиск и сводка. Шаблон **Репетитор**: поля ученика и уроки (дата, длительность, еженедельный повтор, статус, оплата, баланс пакета).
-- Звонок и кнопки WhatsApp, Telegram и MAX с заранее набранным текстом. Набор кнопок задаёт адаптер страны. Журнал: подготовлено / мессенджер открыт / отправлено (подтверждаете вы). Ответы приложение не читает.
+- Звонок, WhatsApp по номеру в международном виде и чат Telegram, только если сохранено имя пользователя. Номер телефона чат Telegram не открывает. «Поделиться текстом» — это не отправка конкретному человеку. В истории: приложение открыто, а «отправлено» — только после вашего подтверждения. Ответы приложение не читает.
+- Через «Поделиться» можно сохранить текст, ссылку, изображение, звук или документ в карточку клиента. Это ручная передача, не доступ ко всей переписке.
 - Экспорт и импорт одного zip (база и фото) через системный выбор файла. Пароль необязателен. Если задать его и забыть, эту копию нельзя восстановить. При импорте можно заменить всё или слить с данными на устройстве (так по умолчанию передают записи другому человеку). Повторное слияние той же копии ничего не меняет. Это шаг перед будущей синхронизацией по локальной сети.
 - Русский, английский и иврит; для иврита интерфейс справа налево.
 
@@ -89,7 +91,7 @@ git push origin v0.3.0
 
 ## Подпись
 
-Релизы подписываются файлом `signing/croman-test.keystore` (alias `croman`, пароли `croman-test`). Это тестовый ключ в репозитории, один и тот же для всех сборок. Для Play Store он не годится. Если файла нет, сборка падает и не создаёт случайный debug-ключ.
+Публикуемая сборка по тегу подписана тестовым ключом `signing/croman-test.keystore` (alias `croman`), тем же сертификатом, что и 0.5.0, и ставится поверх неё. Для Play Store он не годится. `assembleRelease` без приватного ключа завершается ошибкой и не подставляет тестовый ключ. Если тестового файла нет, тестовая сборка падает и не создаёт случайный debug-ключ.
 
 0.2.0 и 0.2.1 подписаны ключом, который раннер GitHub сгенерировал для той задачи. **Удалите 0.2.0 и 0.2.1 один раз перед установкой 0.2.2.** Дальше сборки с этим ключом обновляются поверх 0.2.2.
 

@@ -89,9 +89,9 @@
     <string name="mark_sent_title">Was the message sent?</string>
     <string name="max_app">MAX</string>
     <string name="message_label">Message</string>
-    <string name="message_status_opened">Messenger opened</string>
-    <string name="message_status_prepared">Prepared</string>
-    <string name="message_status_sent">Sent</string>
+    <string name="message_status_opened">App opened, not confirmed</string>
+    <string name="message_status_prepared">Prepared, not opened</string>
+    <string name="message_status_sent">You marked this as sent</string>
     <string name="messages">Messages</string>
     <string name="nav_contacts">Clients</string>
     <string name="nav_tasks">Tasks</string>
@@ -189,4 +189,23 @@
     <string name="workspace_name">Workspace name</string>
     <string name="workspace_rename">Rename</string>
     <string name="workspace_separate">This type already exists. Choose a different name to add another one.</string>
+    <string name="phone_ambiguous">Add the country code. This number is not a clear international number.</string>
+    <string name="telegram_username">Telegram username</string>
+    <string name="telegram_open">Open Telegram chat</string>
+    <string name="telegram_share">Share text in Telegram</string>
+    <string name="telegram_need_username">A phone number does not open a Telegram chat. Add a username.</string>
+    <string name="max_share">Share in MAX</string>
+    <string name="call_opened">Phone dialer opened</string>
+    <string name="share_title">Save into CRoMan</string>
+    <string name="share_save">Save</string>
+    <string name="share_new_client">New client</string>
+    <string name="share_pick_client">Client</string>
+    <string name="share_note">Note</string>
+    <string name="share_task">Create a reminder</string>
+    <string name="share_unsupported">This file type cannot be saved: %1$s</string>
+    <string name="share_from_whatsapp">From WhatsApp</string>
+    <string name="share_from_telegram">From Telegram</string>
+    <string name="share_from_other">From another app</string>
+    <string name="share_channel">Shared in</string>
+    <string name="share_no_workspace">Create a workspace, then share again.</string>
 </resources>

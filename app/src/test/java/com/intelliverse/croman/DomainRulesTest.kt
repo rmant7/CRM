@@ -132,9 +132,11 @@ class DomainRulesTest {
     fun signingConfigRefusesARandomDebugKey() {
         val gradle = listOf(File("app/build.gradle.kts"), File("build.gradle.kts")).first { it.isFile && it.readText().contains("croman-test.keystore") }
         val text = gradle.readText()
-        assertTrue(text.contains("signingConfigs.getByName(\"stable\")"))
+        assertTrue(text.contains("signingConfigs.getByName(\"test\")"))
+        assertTrue(text.contains("requireReleaseSecrets"))
         assertTrue(text.contains("validateSigningCroman"))
         assertTrue(text.contains("Refusing to fall back"))
+        assertTrue(text.contains("will not use the public test key"))
         assertFalse(text.contains("debug.keystore"))
         val keystore = listOf(File("signing/croman-test.keystore"), File("../signing/croman-test.keystore")).first { it.isFile }
         val header = keystore.inputStream().use { it.readNBytes(4) }

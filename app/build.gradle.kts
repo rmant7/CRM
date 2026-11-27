@@ -6,7 +6,15 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-val cromanKeystore = file(System.getenv("CROMAN_KEYSTORE") ?: rootProject.file("signing/croman-test.keystore").absolutePath)
+val testKeystore = rootProject.file("signing/croman-test.keystore")
+val releaseKeystorePath = System.getenv("CROMAN_KEYSTORE")
+val releaseStorePassword = System.getenv("CROMAN_STORE_PASSWORD")
+val releaseKeyPassword = System.getenv("CROMAN_KEY_PASSWORD")
+val releaseKeyAlias = System.getenv("CROMAN_KEY_ALIAS")
+val hasReleaseSecrets = !releaseKeystorePath.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank()
 
 android {
     namespace = "com.intelliverse.croman"
@@ -16,8 +24,8 @@ android {
         applicationId = "com.intelliverse.croman"
         minSdk = 23
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.5.0"
+        versionCode = 12
+        versionName = "0.6.0"
         testInstrumentationRunner = "com.intelliverse.croman.CromanDeviceRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -25,22 +33,34 @@ android {
     }
 
     signingConfigs {
-        create("stable") {
-            storeFile = cromanKeystore
-            storePassword = System.getenv("CROMAN_STORE_PASSWORD") ?: "croman-test"
-            keyAlias = System.getenv("CROMAN_KEY_ALIAS") ?: "croman"
-            keyPassword = System.getenv("CROMAN_KEY_PASSWORD") ?: "croman-test"
+        create("test") {
+            storeFile = testKeystore
+            storePassword = "croman-test"
+            keyAlias = "croman"
+            keyPassword = "croman-test"
             enableV1Signing = true
             enableV2Signing = true
+        }
+        if (hasReleaseSecrets) {
+            create("private") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("stable")
+            signingConfig = signingConfigs.getByName("test")
         }
         release {
-            signingConfig = signingConfigs.getByName("stable")
+            if (hasReleaseSecrets) {
+                signingConfig = signingConfigs.getByName("private")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -111,16 +131,28 @@ tasks.matching { it.name == "kspReleaseKotlin" }.configureEach {
 
 val validateSigningCroman = tasks.register("validateSigningCroman") {
     doLast {
-        if (!cromanKeystore.isFile) {
+        if (!testKeystore.isFile) {
             throw GradleException(
-                "CRoMan signing keystore is missing at $cromanKeystore. " +
+                "CRoMan test keystore is missing at $testKeystore. " +
                     "Refusing to fall back to an auto-generated debug key.",
             )
         }
     }
 }
-tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" || it.name == "packageDebug" || it.name == "packageRelease" }.configureEach {
+val requireReleaseSecrets = tasks.register("requireReleaseSecrets") {
+    doLast {
+        if (!hasReleaseSecrets) {
+            throw GradleException(
+                "Release signing secrets are missing. A Release build will not use the public test key.",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "assembleDebug" || it.name == "packageDebug" }.configureEach {
     dependsOn(validateSigningCroman)
+}
+tasks.matching { it.name == "assembleRelease" || it.name == "packageRelease" || it.name == "bundleRelease" }.configureEach {
+    dependsOn(requireReleaseSecrets)
 }
 
 dependencies {

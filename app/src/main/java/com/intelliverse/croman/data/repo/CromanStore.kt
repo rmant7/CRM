@@ -674,29 +674,31 @@ class CromanStore(
 
     suspend fun saveContactExtras(workspaceId: String, contactId: String, extras: Map<String, String>) {
         val now = clock()
-        extras.forEach { (key, value) ->
-            database().entities().upsertValue(
-                FieldValueEntity(
-                    id = "$contactId:$key",
-                    sync = stamp(workspaceId, now, now),
-                    entityId = contactId,
-                    fieldKey = key,
-                    valueText = value,
-                    valueNumber = value.replace(',', '.').toDoubleOrNull(),
-                    valueMoney = value.toLongOrNull(),
-                    valueDate = null,
-                    valueBool = null,
-                    valueRef = null,
-                    valueJson = null,
-                ),
-            )
-        }
-        if (extras.containsKey("reply_class")) {
-            database().contacts().setDoNotContact(
-                contactId,
-                com.intelliverse.croman.domain.ReplyClass.isStop(extras["reply_class"]),
-                now,
-            )
+        database().withTransaction {
+            extras.forEach { (key, value) ->
+                database().entities().upsertValue(
+                    FieldValueEntity(
+                        id = "$contactId:$key",
+                        sync = stamp(workspaceId, now, now),
+                        entityId = contactId,
+                        fieldKey = key,
+                        valueText = value,
+                        valueNumber = value.replace(',', '.').toDoubleOrNull(),
+                        valueMoney = value.toLongOrNull(),
+                        valueDate = null,
+                        valueBool = null,
+                        valueRef = null,
+                        valueJson = null,
+                    ),
+                )
+            }
+            if (extras.containsKey("reply_class")) {
+                database().contacts().setDoNotContact(
+                    contactId,
+                    com.intelliverse.croman.domain.ReplyClass.isStop(extras["reply_class"]),
+                    now,
+                )
+            }
         }
     }
 
@@ -726,12 +728,12 @@ class CromanStore(
             }
         }
 
-    suspend fun addDocument(workspaceId: String, ownerId: String, fileName: String, title: String) {
+    suspend fun addDocument(workspaceId: String, ownerId: String, fileName: String, title: String, mime: String = "image/jpeg") {
         val now = clock()
         val sort = database().misc().maxSort(ownerId) + 1
         val id = Ids.new()
         database().misc().upsertDocument(
-            DocumentEntity(id, stamp(workspaceId, now, now), ownerId, fileName, "image/jpeg", title, sort),
+            DocumentEntity(id, stamp(workspaceId, now, now), ownerId, fileName, mime.ifBlank { "application/octet-stream" }, title, sort),
         )
         audit(workspaceId, "documents", id, "upsert")
     }
@@ -804,6 +806,13 @@ class CromanStore(
         val now = clock()
         database().misc().upsertMessage(existing.copy(status = status.name, sync = existing.sync.copy(updatedAt = now, updatedByUserId = userId)))
         audit(existing.sync.workspaceId, "message_log", id, "upsert")
+    }
+
+    suspend fun discardMessage(id: String) {
+        val existing = database().misc().message(id) ?: return
+        val now = clock()
+        database().misc().upsertMessage(existing.copy(sync = existing.sync.copy(updatedAt = now, deletedAt = now)))
+        audit(existing.sync.workspaceId, "message_log", id, "delete")
     }
 
     suspend fun changesSince(workspaceId: String, since: Long): List<Change> =

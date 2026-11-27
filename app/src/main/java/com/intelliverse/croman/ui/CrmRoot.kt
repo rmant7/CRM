@@ -62,6 +62,7 @@ import com.intelliverse.croman.ui.tasks.TaskEditorScreen
 import com.intelliverse.croman.ui.tasks.TasksScreen
 import com.intelliverse.croman.ui.theme.LocalLanguage
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 object Routes {
     const val HOME = "home"
@@ -87,7 +88,7 @@ object Routes {
 }
 
 @Composable
-fun CromanRoot(initialTaskId: String?) {
+fun CromanRoot(initialTaskId: String?, share: com.intelliverse.croman.ui.share.IncomingShare? = null, onShareHandled: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val languageTag by container.settings.languageTag.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
@@ -104,6 +105,17 @@ fun CromanRoot(initialTaskId: String?) {
         }
         if (workspace == null || template == null) {
             OnboardingScreen()
+            return@CompositionLocalProvider
+        }
+        if (share != null) {
+            val people by container.store.observeContacts(workspace.id, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            com.intelliverse.croman.ui.share.ShareImportScreen(share, people, { contactId, newName, note, makeTask ->
+                scope.launch {
+                    val saved = saveShare(container, context, workspace.id, share, contactId, newName, note, makeTask)
+                    if (saved) onShareHandled()
+                }
+            }, onShareHandled)
             return@CompositionLocalProvider
         }
         val nav = rememberNavController()
@@ -276,3 +288,54 @@ private fun iconFor(route: String): ImageVector = when {
 
 @Suppress("unused")
 private val keepTemplate: TemplateFile? = null
+
+private suspend fun saveShare(
+    container: com.intelliverse.croman.di.AppContainer,
+    context: android.content.Context,
+    workspaceId: String,
+    share: com.intelliverse.croman.ui.share.IncomingShare,
+    contactId: String?,
+    newName: String,
+    note: String,
+    makeTask: Boolean,
+): Boolean {
+    if (share.rejectedMime != null) return false
+    val resolver = context.contentResolver
+    val opened = share.files.map { file ->
+        val uri = android.net.Uri.parse(file.uri)
+        val mime = resolver.getType(uri) ?: file.mime
+        if (!com.intelliverse.croman.domain.ShareIntake.acceptable(mime)) return false
+        val stream = runCatching { resolver.openInputStream(uri) }.getOrNull() ?: return false
+        stream.close()
+        file to mime
+    }
+    val id = contactId ?: com.intelliverse.croman.domain.Ids.new().also { created ->
+        container.store.saveContact(
+            com.intelliverse.croman.domain.Contact(
+                created, workspaceId, newName, "", "", "",
+                com.intelliverse.croman.domain.ContactKind.OTHER, share.channel, "", 0, 0,
+            ),
+        )
+    }
+    opened.forEach { (file, mime) ->
+        val uri = android.net.Uri.parse(file.uri)
+        val safe = com.intelliverse.croman.domain.Ids.new() + "-" + file.name.take(40).replace(Regex("[^A-Za-z0-9._-]"), "_")
+        if (mime.startsWith("image/")) container.photos.import(uri, safe) else container.photos.importRaw(uri, safe)
+        container.store.addDocument(workspaceId, id, safe, file.name, mime)
+    }
+    val body = listOf(share.text, note).filter { it.isNotBlank() }.joinToString("\n")
+    val summary = body.ifBlank { share.files.joinToString { it.name } }.ifBlank { share.channel }
+    container.store.addActivity(workspaceId, share.channel, summary, id, null)
+    if (makeTask) {
+        val now = System.currentTimeMillis()
+        val whenAt = now + 86_400_000L
+        container.store.saveTask(
+            com.intelliverse.croman.domain.TaskItem(
+                com.intelliverse.croman.domain.Ids.new(), workspaceId,
+                summary.lineSequence().first().take(80), summary, whenAt, whenAt, null, id, null, now, now,
+            ),
+            container.reminders::schedule,
+        )
+    }
+    return true
+}

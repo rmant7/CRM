@@ -40,6 +40,8 @@ The interface simplifies discovery, not features. The first screen asks what the
 
 Consultations and coaching (0.5.0) sit on the existing appointment engine. The card is one record per meeting, with collapsed sections, a next-step date that uses the same reminder as a visit, and an outreach reply classifier. X1 marks the person do-not-contact. Cards and outreach contacts export as UTF-8 CSV. Schema version is 3, adding only `contacts.do_not_contact`; the card fields stay in `field_values` and follow the existing backup merge.
 
+0.6.0 adds a manual Android share into a client and honest messenger actions. WhatsApp opens only from a number that can be written internationally. Telegram opens a chat only from a saved username. System backup of the database is off; the in-app zip remains the export. Official messenger APIs, a server, sync, and AI are later and are not in this build.
+
 ---
 
 # Дорожная карта CRoMan

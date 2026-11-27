@@ -89,9 +89,9 @@
     <string name="mark_sent_title">Сообщение отправлено?</string>
     <string name="max_app">MAX</string>
     <string name="message_label">Сообщение</string>
-    <string name="message_status_opened">Мессенджер открыт</string>
-    <string name="message_status_prepared">Подготовлено</string>
-    <string name="message_status_sent">Отправлено</string>
+    <string name="message_status_opened">Приложение открыто, отправка не подтверждена</string>
+    <string name="message_status_prepared">Подготовлено, не открыто</string>
+    <string name="message_status_sent">Вы отметили как отправленное</string>
     <string name="messages">Сообщения</string>
     <string name="nav_contacts">Клиенты</string>
     <string name="nav_tasks">Задачи</string>
@@ -189,4 +189,23 @@
     <string name="workspace_name">Имя пространства</string>
     <string name="workspace_rename">Переименовать</string>
     <string name="workspace_separate">Такой тип уже есть. Укажите другое имя, чтобы добавить ещё одно.</string>
+    <string name="phone_ambiguous">Добавьте код страны. Номер нельзя однозначно прочитать.</string>
+    <string name="telegram_username">Имя в Telegram</string>
+    <string name="telegram_open">Открыть чат Telegram</string>
+    <string name="telegram_share">Поделиться текстом в Telegram</string>
+    <string name="telegram_need_username">Номер телефона не открывает чат Telegram. Добавьте имя пользователя.</string>
+    <string name="max_share">Поделиться в MAX</string>
+    <string name="call_opened">Открыт набор номера</string>
+    <string name="share_title">Сохранить в CRoMan</string>
+    <string name="share_save">Сохранить</string>
+    <string name="share_new_client">Новый клиент</string>
+    <string name="share_pick_client">Клиент</string>
+    <string name="share_note">Заметка</string>
+    <string name="share_task">Создать напоминание</string>
+    <string name="share_unsupported">Этот тип файла нельзя сохранить: %1$s</string>
+    <string name="share_from_whatsapp">Из WhatsApp</string>
+    <string name="share_from_telegram">Из Telegram</string>
+    <string name="share_from_other">Из другого приложения</string>
+    <string name="share_channel">Передано</string>
+    <string name="share_no_workspace">Сначала создайте пространство, затем поделитесь снова.</string>
 </resources>

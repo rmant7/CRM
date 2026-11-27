@@ -33,12 +33,21 @@ class PhotoStore(context: Context) {
     }
 
     fun import(uri: Uri, fileName: String) {
+        copy(uri, fileName)
+        normalize(file(fileName))
+    }
+
+    /** Copies a document or audio file without re-encoding it as a photo. */
+    fun importRaw(uri: Uri, fileName: String) {
+        copy(uri, fileName)
+    }
+
+    private fun copy(uri: Uri, fileName: String) {
         val dest = file(fileName)
         resolver.openInputStream(uri).use { input ->
             requireNotNull(input) { "unreadable" }
             dest.outputStream().use { output -> input.copyTo(output) }
         }
-        normalize(dest)
     }
 
     fun writeBitmap(fileName: String, bitmap: Bitmap) {

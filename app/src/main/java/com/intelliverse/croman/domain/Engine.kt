@@ -155,15 +155,68 @@ object NavLabels {
     const val MAX_LINES = 2
 }
 
+enum class PhoneIssue { MISSING, AMBIGUOUS, INVALID }
+
+sealed class PhoneNumber {
+    data class Ready(val e164: String) : PhoneNumber()
+    data class Rejected(val issue: PhoneIssue) : PhoneNumber()
+}
+
 object PhoneLinks {
+    private val callingCode = mapOf(
+        "IL" to "972",
+        "RU" to "7",
+        "US" to "1",
+        "UA" to "380",
+        "DE" to "49",
+        "GB" to "44",
+        "FR" to "33",
+    )
+
     fun digits(raw: String): String = raw.filter { it.isDigit() }
 
-    fun whatsAppUrl(rawPhone: String, message: String): String? {
-        val digits = digits(rawPhone)
-        if (digits.length < 8) return null
-        return "https://wa.me/$digits?text=${encode(message)}"
+    /** E.164 digits with no plus. A national number is used only when [country] is a known workspace country. */
+    fun normalize(rawPhone: String, country: String? = null): PhoneNumber {
+        val trimmed = rawPhone.trim()
+        val count = trimmed.count { it.isDigit() }
+        if (count == 0) return PhoneNumber.Rejected(PhoneIssue.MISSING)
+        val plus = trimmed.startsWith("+")
+        val doubleZero = trimmed.startsWith("00")
+        var body = digits(trimmed)
+        if (doubleZero) body = body.removePrefix("00")
+        if (plus || doubleZero) {
+            return if (body.length in 8..15) PhoneNumber.Ready(body) else PhoneNumber.Rejected(PhoneIssue.INVALID)
+        }
+        val region = country?.trim()?.uppercase().orEmpty()
+        val code = callingCode[region] ?: return PhoneNumber.Rejected(PhoneIssue.AMBIGUOUS)
+        val national = nationalDigits(region, body)
+        val e164 = if (national.startsWith(code)) national else code + national
+        return if (e164.length in 8..15) PhoneNumber.Ready(e164) else PhoneNumber.Rejected(PhoneIssue.INVALID)
     }
 
+    fun whatsAppUrl(rawPhone: String, message: String, country: String? = null): String? {
+        val ready = normalize(rawPhone, country) as? PhoneNumber.Ready ?: return null
+        return "https://wa.me/${ready.e164}?text=${encode(message)}"
+    }
+
+    fun telegramUsername(raw: String): String? {
+        var value = raw.trim()
+        if (value.isEmpty()) return null
+        value = value.removePrefix("@")
+        value = value.removePrefix("https://t.me/").removePrefix("http://t.me/").removePrefix("https://telegram.me/")
+        value = value.substringBefore('?').substringBefore('/').trim()
+        if (value.length !in 5..32) return null
+        if (!value.matches(Regex("[A-Za-z][A-Za-z0-9_]{4,31}"))) return null
+        return value
+    }
+
+    /** Opens one Telegram chat. A phone number is not accepted here. */
+    fun telegramChatUrl(username: String): String? {
+        val name = telegramUsername(username) ?: return null
+        return "https://t.me/$name"
+    }
+
+    /** Generic chooser. This is not delivery to one contact. */
     fun telegramUrl(message: String): String = "https://t.me/share/url?text=${encode(message)}"
 
     fun maxUrl(message: String): String = "https://max.ru/:share?text=${encode(message)}"
@@ -174,8 +227,20 @@ object PhoneLinks {
         return if (raw.trimStart().startsWith("+")) "tel:+$body" else "tel:$body"
     }
 
+    private fun nationalDigits(country: String, digits: String): String = when (country) {
+        "RU" -> if (digits.length == 11 && digits.startsWith("8")) digits.drop(1) else digits
+        else -> if (digits.startsWith("0")) digits.drop(1) else digits
+    }
+
     private fun encode(value: String): String =
         URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
+}
+
+/** The send-confirmation dialog must not return after the person already answered it. */
+object SendPrompt {
+    fun showOnResume(pendingId: String?): Boolean = pendingId != null
+
+    fun clear(): String? = null
 }
 
 object MoneyText {
