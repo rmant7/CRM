@@ -1,6 +1,6 @@
 # CRoMan
 
-Offline CRM for independent specialists and small teams. Version 0.7.1 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Share text or files from another app into a client. Consultations use the appointment engine. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
+Offline CRM for independent specialists and small teams. Version 0.7.2 runs on Android 6.0 through Android 16. The first screen asks what you do, then opens a ready workspace. Share text or files from another app into a client. Consultations use the appointment engine. There is no account and no network permission. The product plan is in [ROADMAP.md](ROADMAP.md).
 
 The Android package is `com.intelliverse.croman`. It installs next to Mantel CRM 0.1 (`com.mantelmakher.crm`); the two apps do not share data.
 
@@ -8,7 +8,7 @@ Copyright 2026 Roman Mantelmakher. Apache License 2.0.
 
 ## What you can do
 
-- Switch workspaces. Creating one asks for a name, and a second workspace of the same template needs its own name. You can rename or hide a workspace. The **Realtor** template covers clients, listings (with photos), a deal pipeline (list and board), tasks with local reminders, notes, search, and a home summary. The **Tutor** template uses student fields and lessons (date, duration, weekly repeat, status, payment, package balance).
+- Switch workspaces. Creating one asks for a name, and a second workspace of the same template needs its own name. You can rename or hide a workspace. The **Realtor** template covers clients (buyer, seller, tenant, landlord), listings (with photos), a deal pipeline (list and board), tasks with local reminders, notes, search, and a home summary. A rental deal can link the landlord and the tenant. Existing clients and the client link on a deal stay as they are. The **Tutor** template uses student fields and lessons (date, duration, weekly repeat, status, payment, package balance).
 - On the client card, next to the phone number, one row of icons: Call, SMS, WhatsApp, Telegram, and Email. A missing phone, Telegram username, or email leaves that icon in place and explains what to add. Email and the Telegram username are fields on the client and are edited in the client editor. The same row is on a deal or consultation that points at that client. WhatsApp opens only for a number that can be written in international form. A phone number does not open a Telegram chat. The history says the app was opened, and “sent” only after you confirm. The app never reads replies.
 - Share text, links, images, audio, video, or documents from another app into CRoMan and attach them to a client. A video over 100 MB asks before it is saved. Videos are kept with the client, so an exported backup zip includes them. This is a manual share, not access to the whole chat. A WhatsApp chat export (.txt or .zip) and a VCF card can be imported. Paste from the clipboard into the client history.
 - Export or import one zip (database + photos) through the system file picker. A password is optional. If you set one and forget it, that backup cannot be recovered. Import can replace everything or merge into the data already on the device (the default when moving records from one person to another). Merging the same backup twice changes nothing. This merge is the step before a later LAN sync.
@@ -59,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 # CRoMan
 
-Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.7.1 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Текст и файлы из другого приложения можно сохранить клиенту через «Поделиться». Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
+Офлайн-CRM для независимых специалистов и небольших команд. Версия 0.7.2 работает с Android 6.0 по Android 16. Первый экран спрашивает, чем вы занимаетесь, и сразу открывает готовое пространство. Текст и файлы из другого приложения можно сохранить клиенту через «Поделиться». Аккаунта нет, разрешения на интернет нет. План продукта — в [ROADMAP.md](ROADMAP.md).
 
 Пакет Android: `com.intelliverse.croman`. Приложение ставится рядом с Mantel CRM 0.1 (`com.mantelmakher.crm`) и не делит с ним данные.
 

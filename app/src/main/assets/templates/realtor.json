@@ -87,6 +87,9 @@
         {"key": "rooms", "label": {"en": "Rooms", "ru": "Комнаты", "he": "חדרים"}, "type": "number"},
         {"key": "floor", "label": {"en": "Floor", "ru": "Этаж", "he": "קומה"}, "type": "text"},
         {"key": "description", "label": {"en": "Description", "ru": "Описание", "he": "תיאור"}, "type": "text"}
+      ],
+      "relations": [
+        {"key": "landlord", "label": {"en": "Landlord", "ru": "Арендодатель", "he": "משכיר"}, "target": "contact"}
       ]
     },
     {
@@ -106,6 +109,8 @@
       },
       "relations": [
         {"key": "client", "label": {"en": "Client", "ru": "Клиент", "he": "לקוח"}, "target": "contact"},
+        {"key": "tenant", "label": {"en": "Tenant", "ru": "Арендатор", "he": "שוכר"}, "target": "contact"},
+        {"key": "landlord", "label": {"en": "Landlord", "ru": "Арендодатель", "he": "משכיר"}, "target": "contact"},
         {"key": "property", "label": {"en": "Listing", "ru": "Объект", "he": "נכס"}, "target": "entity:property"}
       ],
       "fields": [

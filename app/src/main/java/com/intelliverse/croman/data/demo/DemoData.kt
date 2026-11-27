@@ -93,7 +93,28 @@ object DemoSamples {
             ),
         ) { }
         ids += taskId
+        if (template.id == "realtor") ids += rentalSample(store, workspaceId, template)
         return ids
+    }
+
+    private suspend fun rentalSample(store: CromanStore, workspaceId: String, template: TemplateFile): Set<String> {
+        val landlordId = Ids.new()
+        val tenantId = Ids.new()
+        store.saveContact(Contact(landlordId, workspaceId, "Ilan Peretz", "+972501110010", "", "", ContactKind.LANDLORD, "demo", "", 0, 0))
+        store.saveContact(Contact(tenantId, workspaceId, "Noa Bar", "+972501110011", "", "", ContactKind.TENANT, "demo", "", 0, 0))
+        val property = template.entityTypes.first { it.key == "property" }
+        val deal = template.entityTypes.first { it.key == "deal" }
+        val listingId = addEntity(
+            store, workspaceId, property, "Rent, Allenby", null, landlordId,
+            mapOf("purpose" to "rent", "status" to "active", "city" to "Tel Aviv", "address" to "Allenby 12"),
+            mapOf("landlord" to landlordId),
+        )
+        val dealId = addEntity(
+            store, workspaceId, deal, "Allenby rent", "lead", tenantId,
+            mapOf("amount" to "4500", "currency" to "ILS"),
+            mapOf("tenant" to tenantId, "landlord" to landlordId, "property" to listingId),
+        )
+        return setOf(landlordId, tenantId, listingId, dealId)
     }
 
     private suspend fun addEntity(
@@ -104,6 +125,7 @@ object DemoSamples {
         stage: String?,
         contactId: String,
         overrides: Map<String, String>,
+        links: Map<String, String>? = null,
     ): String {
         val id = Ids.new()
         val fields = type.fields.associate { field ->
@@ -115,7 +137,9 @@ object DemoSamples {
                 else -> title
             })
         }
-        val relations = type.relations.filter { it.target == "contact" }.associate { it.key to contactId }
+        val relations = links ?: type.relations
+            .filter { it.target == "contact" && it.key in setOf("client", "student") }
+            .associate { it.key to contactId }
         store.saveEntity(workspaceId, id, type, title, stage, fields, relations)
         return id
     }

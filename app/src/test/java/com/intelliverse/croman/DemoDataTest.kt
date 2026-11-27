@@ -38,6 +38,13 @@ class DemoDataTest {
         val realId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
         store.saveContact(Contact(realId, workspace, "Real Maya", "555", "", "", ContactKind.BUYER, "", "", 1, 1))
         val demo = DemoSamples.load(store, workspace, template)
+        val landlord = store.observeContacts(workspace, "", ContactKind.LANDLORD).first().single()
+        assertEquals("Ilan Peretz", landlord.fullName)
+        val rent = store.observeEntities(workspace, "deal", "", null, emptyMap()).first().first { it.title == "Allenby rent" }
+        val links = store.entityRelations(rent.id)
+        assertEquals(landlord.id, links["landlord"])
+        assertTrue(links["tenant"]!!.isNotBlank())
+        assertEquals(ContactKind.BUYER, store.observeContacts(workspace, "", null).first().first { it.fullName == "Maya Levi" }.kind)
         val summary = store.observeHome(workspace, template).first { it.stages.sumOf { stage -> stage.count } > 0 }
         assertTrue(summary.stages.count { it.count > 0 } >= 2)
         assertEquals(1, store.getContact(realId)?.let { 1 } ?: 0)

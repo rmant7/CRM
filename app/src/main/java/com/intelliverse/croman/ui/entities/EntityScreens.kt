@@ -270,7 +270,7 @@ fun EntityDetailScreen(
                 item {
                     TextButton(onClick = {
                         scope.launch {
-                            store.addPayment(workspaceId, PaymentKind.INCOME, fields["amount"]?.toLongOrNull() ?: 0L, fields["currency"].orEmpty().ifBlank { "ILS" }, relations["client"], entityId, "")
+                            store.addPayment(workspaceId, PaymentKind.INCOME, fields["amount"]?.toLongOrNull() ?: 0L, fields["currency"].orEmpty().ifBlank { "ILS" }, relations["tenant"] ?: relations["client"], entityId, "")
                         }
                     }) { Text(stringResource(R.string.record_payment)) }
                 }
@@ -278,7 +278,7 @@ fun EntityDetailScreen(
             item { SectionTitle(stringResource(R.string.linked_tasks)) }
             item { TextButton(onClick = { onAddTask(entityId) }) { Text(stringResource(R.string.add_task)) } }
             item { SectionTitle(stringResource(R.string.history)) }
-            item { NoteComposer { scope.launch { store.addActivity(workspaceId, "note", it, relations["client"], entityId) } } }
+            item { NoteComposer { scope.launch { store.addActivity(workspaceId, "note", it, relations["tenant"] ?: relations["client"], entityId) } } }
             item {
                 if (history.isEmpty()) Text(stringResource(R.string.empty_notes))
                 history.forEach { Text("${it.kind}: ${it.body}") }
