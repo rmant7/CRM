@@ -30,6 +30,24 @@ if [ ! -f "$TEST_APK" ] || ! adb install -r -t -g "$TEST_APK" >"$OUT/install-tes
   exit 1
 fi
 
+pull_shots() {
+  local dest="$1"
+  mkdir -p "$dest"
+  local names name
+  names=$(adb shell run-as "$PKG" ls files/screenshots 2>/dev/null | tr -d '\r' || true)
+  if [ -n "$names" ]; then
+    for name in $names; do
+      case "$name" in
+        *.png)
+          adb exec-out run-as "$PKG" cat "files/screenshots/$name" >"$dest/$name" || true
+          ;;
+      esac
+    done
+    return 0
+  fi
+  adb pull "/sdcard/Android/data/${PKG}/files/screenshots/." "$dest" || true
+}
+
 apply_locale() {
   local tag="$1"
   local lang country
@@ -56,9 +74,10 @@ for locale in $LOCALES; do
   code=$?
   set -e
   adb exec-out screencap -p >"$OUT/${locale}-foreground.png" || true
-  adb pull "/sdcard/Android/data/${PKG}/files/screenshots" "$OUT/shots-${locale}" || true
+  pull_shots "$OUT/shots-${locale}"
   if [ "$code" -ne 0 ] || grep -q "FAILURES!!!" "$OUT/instrument-${locale}.txt"; then
     echo "fail: API ${API} locale ${locale} instrumented tests exit ${code}" | tee "$OUT/status.txt"
+    tail -n 30 "$OUT/instrument-${locale}.txt" | tee -a "$OUT/status.txt" || true
     exit 1
   fi
 done

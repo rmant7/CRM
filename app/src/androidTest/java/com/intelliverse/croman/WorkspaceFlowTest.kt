@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -123,21 +124,45 @@ class WorkspaceFlowTest {
             app.container.settings.rememberDemo(id, created)
             app.container.settings.setWorkspace(id)
         }
-        val consultations = template.entityTypes.first { it.key == "consultation" }.label
-        rule.waitUntil(30_000) { visible(consultations).isNotEmpty() }
-        rule.onNodeWithText(visible(consultations)).performClick()
+        val menu = template.menu.first { it.route == "entities:consultation" }.label
+        val settingsTitle = rule.activity.getString(R.string.settings)
+        if (rule.onAllNodesWithText(settingsTitle).fetchSemanticsNodes().isNotEmpty()) {
+            rule.activity.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+            rule.waitForIdle()
+        }
+        rule.waitUntil(30_000) { visible(menu).isNotEmpty() }
+        rule.onNodeWithText(visible(menu)).performClick()
         rule.waitUntil(30_000) { rule.onAllNodesWithText("Intake with Maya").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Intake with Maya").performClick()
+        val edit = rule.activity.getString(R.string.cd_edit)
+        rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithContentDescription(edit).performClick()
         val next = L10n("Status and next step", "Статус и следующий шаг", "סטטוס והצעד הבא")
-        rule.waitUntil(30_000) { visible(next).isNotEmpty() }
+        rule.waitUntil(30_000) { shown(next) }
         DeviceShots.save("${localeArg()}-consultation")
-        rule.activity.onBackPressedDispatcher.onBackPressed()
+        repeat(2) { pressBack() }
         val people = template.contactProfile!!.title
         rule.waitUntil(30_000) { visible(people).isNotEmpty() }
         rule.onNodeWithText(visible(people)).performClick()
         val stop = rule.activity.getString(R.string.do_not_contact)
         rule.waitUntil(30_000) { rule.onAllNodesWithText(stop).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText("Maya Levi").performClick()
+        rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithContentDescription(edit).performClick()
+        val reply = rule.activity.getString(R.string.reply_class)
+        rule.onNodeWithText(reply).performScrollTo()
+        rule.waitForIdle()
         DeviceShots.save("${localeArg()}-outreach")
+        rule.onNodeWithText("X1", substring = true).assertIsDisplayed()
+    }
+
+    private fun pressBack() {
+        rule.activity.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForIdle()
+    }
+
+    private fun shown(name: L10n): Boolean = listOf(name.en, name.ru, name.he).any { text ->
+        rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
     }
 
     private fun visible(name: L10n): String = listOf(name.en, name.ru, name.he).firstOrNull { text ->
