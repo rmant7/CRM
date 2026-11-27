@@ -7,9 +7,11 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.intelliverse.croman.data.template.TemplateCatalog
@@ -137,8 +139,10 @@ class WorkspaceFlowTest {
         val edit = rule.activity.getString(R.string.cd_edit)
         rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithContentDescription(edit).performClick()
+        val cardTitle = template.entityTypes.first { it.key == "consultation" }.label
         val next = L10n("Status and next step", "Статус и следующий шаг", "סטטוס והצעד הבא")
-        rule.waitUntil(30_000) { shown(next) }
+        rule.waitUntil(30_000) { visible(cardTitle).isNotEmpty() && shown(next) }
+        rule.waitForIdle()
         DeviceShots.save("${localeArg()}-consultation")
         repeat(2) { pressBack() }
         val people = template.contactProfile!!.title
@@ -150,10 +154,26 @@ class WorkspaceFlowTest {
         rule.waitUntil(30_000) { rule.onAllNodes(hasContentDescription(edit)).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithContentDescription(edit).performClick()
         val reply = rule.activity.getString(R.string.reply_class)
-        rule.onNodeWithText(reply).performScrollTo()
-        rule.waitForIdle()
+        bringIntoView(reply)
+        bringIntoView("X1")
         DeviceShots.save("${localeArg()}-outreach")
         rule.onNodeWithText("X1", substring = true).assertIsDisplayed()
+    }
+
+    private fun bringIntoView(text: String) {
+        repeat(16) {
+            val nodes = rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes()
+            if (nodes.isNotEmpty()) {
+                try {
+                    rule.onNodeWithText(text, substring = true).assertIsDisplayed()
+                    return
+                } catch (_: AssertionError) {
+                }
+            }
+            rule.onRoot().performTouchInput { swipeUp() }
+            rule.waitForIdle()
+        }
+        rule.onNodeWithText(text, substring = true).assertIsDisplayed()
     }
 
     private fun pressBack() {

@@ -342,7 +342,16 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
         if (!ready) { LoadingBox(Modifier.padding(padding)); return@CrmScaffold }
         val profileKeys = template.contactProfile?.fields?.map { it.key }?.toSet()
         fun show(key: String) = profileKeys == null || key in profileKeys
+        val extraFields = template.contactProfile?.fields?.filter { it.key !in CORE_CONTACT_KEYS }.orEmpty()
+        val replyField = extraFields.firstOrNull { it.key == com.intelliverse.croman.domain.ConsultationCard.REPLY }
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (replyField != null) {
+                item(key = "reply_class") {
+                    com.intelliverse.croman.ui.entities.OutreachReply(extras[replyField.key].orEmpty()) {
+                        extras = extras + (replyField.key to it)
+                    }
+                }
+            }
             item { OutlinedTextField(name, { name = it; error = false }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_name)) }, isError = error, singleLine = true) }
             if (show("phone")) item { LtrField(phone, { phone = it }, stringResource(R.string.contact_phone)) }
             if (show("email")) item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
@@ -350,14 +359,7 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
             if (show("kind")) item { CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), ContactKind.entries, { stringResource(it.label()) }) { kind = it } }
             if (show("source")) item { OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_source)) }, singleLine = true) }
             if (show("note")) item { OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_note)) }, minLines = 2) }
-            val extraFields = template.contactProfile?.fields?.filter { it.key !in CORE_CONTACT_KEYS }.orEmpty()
-            items(extraFields, key = { it.key }) { field ->
-                if (field.key == com.intelliverse.croman.domain.ConsultationCard.REPLY) {
-                    com.intelliverse.croman.ui.entities.OutreachReply(extras[field.key].orEmpty()) {
-                        extras = extras + (field.key to it)
-                    }
-                    return@items
-                }
+            items(extraFields.filter { it.key != com.intelliverse.croman.domain.ConsultationCard.REPLY }, key = { it.key }) { field ->
                 OutlinedTextField(
                     extras[field.key].orEmpty(),
                     { extras = extras + (field.key to it) },

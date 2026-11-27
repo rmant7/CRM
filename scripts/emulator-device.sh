@@ -33,19 +33,19 @@ fi
 pull_shots() {
   local dest="$1"
   mkdir -p "$dest"
-  local names name
+  local names name copied=0
   names=$(adb shell run-as "$PKG" ls files/screenshots 2>/dev/null | tr -d '\r' || true)
-  if [ -n "$names" ]; then
-    for name in $names; do
-      case "$name" in
-        *.png)
-          adb exec-out run-as "$PKG" cat "files/screenshots/$name" >"$dest/$name" || true
-          ;;
-      esac
-    done
-    return 0
+  for name in $names; do
+    case "$name" in
+      *.png)
+        adb exec-out run-as "$PKG" cat "files/screenshots/$name" >"$dest/$name" || true
+        if [ -s "$dest/$name" ]; then copied=1; fi
+        ;;
+    esac
+  done
+  if [ "$copied" -eq 0 ]; then
+    adb pull "/sdcard/Android/data/${PKG}/files/screenshots" "$dest" || true
   fi
-  adb pull "/sdcard/Android/data/${PKG}/files/screenshots/." "$dest" || true
 }
 
 apply_locale() {
