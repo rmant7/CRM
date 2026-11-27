@@ -61,11 +61,6 @@ class MainActivity : AppCompatActivity() {
         incoming = com.intelliverse.croman.ui.share.ShareIntents.from(intent, contentResolver, referrer)
     }
 
-    /** Used by the device test. `onNewIntent` is protected. */
-    fun acceptIncoming(intent: Intent) {
-        onNewIntent(intent)
-    }
-
     companion object {
         const val EXTRA_TASK_ID = "taskId"
         const val EXTRA_BENCHMARK = "benchmark"
