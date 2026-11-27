@@ -62,6 +62,7 @@ import com.intelliverse.croman.ui.tasks.TaskEditorScreen
 import com.intelliverse.croman.ui.tasks.TasksScreen
 import com.intelliverse.croman.ui.theme.LocalLanguage
 import java.util.Locale
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -110,12 +111,37 @@ fun CromanRoot(initialTaskId: String?, share: com.intelliverse.croman.ui.share.I
         if (share != null) {
             val people by container.store.observeContacts(workspace.id, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
             val scope = androidx.compose.runtime.rememberCoroutineScope()
-            com.intelliverse.croman.ui.share.ShareImportScreen(share, people, { contactId, newName, note, makeTask ->
-                scope.launch {
-                    val saved = saveShare(container, context, workspace.id, share, contactId, newName, note, makeTask)
-                    if (saved) onShareHandled()
+            when (share.kind) {
+                com.intelliverse.croman.ui.share.IncomingKind.CHAT -> {
+                    val transcript = rememberShareText(context, share)
+                    com.intelliverse.croman.ui.share.ChatImportScreen(transcript, people, { log, me, contactId, newName ->
+                        scope.launch {
+                            val zip = share.files.firstOrNull()?.takeIf { it.name.endsWith(".zip", true) }?.let { file ->
+                                val temp = java.io.File.createTempFile("chat", ".zip", context.cacheDir)
+                                context.contentResolver.openInputStream(android.net.Uri.parse(file.uri))?.use { input -> temp.outputStream().use { input.copyTo(it) } }
+                                temp
+                            }
+                            importChat(container, workspace.id, log, me, contactId, newName, zip)
+                            onShareHandled()
+                        }
+                    }, onShareHandled)
                 }
-            }, onShareHandled)
+                com.intelliverse.croman.ui.share.IncomingKind.VCF -> {
+                    val cards = rememberVCards(context, share)
+                    com.intelliverse.croman.ui.share.VcfImportScreen(cards, {
+                        scope.launch {
+                            importCards(container, workspace.id, template.country, cards)
+                            onShareHandled()
+                        }
+                    }, onShareHandled)
+                }
+                else -> com.intelliverse.croman.ui.share.ShareImportScreen(share, people, { contactId, newName, note, makeTask ->
+                    scope.launch {
+                        val saved = saveShare(container, context, workspace.id, share, contactId, newName, note, makeTask)
+                        if (saved) onShareHandled()
+                    }
+                }, onShareHandled)
+            }
             return@CompositionLocalProvider
         }
         val nav = rememberNavController()
@@ -326,6 +352,15 @@ private suspend fun saveShare(
     val body = listOf(share.text, note).filter { it.isNotBlank() }.joinToString("\n")
     val summary = body.ifBlank { share.files.joinToString { it.name } }.ifBlank { share.channel }
     container.store.addActivity(workspaceId, share.channel, summary, id, null)
+    val nowLink = System.currentTimeMillis()
+    if (com.intelliverse.croman.domain.MapLinks.find(share.text) != null) {
+        container.store.saveComm(
+            com.intelliverse.croman.domain.CommMessage(
+                com.intelliverse.croman.domain.Ids.new(), workspaceId, id, "other", "unknown", "",
+                share.text, nowLink, "saved", null, "", 0, 0,
+            ),
+        )
+    }
     if (makeTask) {
         val now = System.currentTimeMillis()
         val whenAt = now + 86_400_000L
@@ -338,4 +373,120 @@ private suspend fun saveShare(
         )
     }
     return true
+}
+
+@Composable
+private fun rememberShareText(context: android.content.Context, share: com.intelliverse.croman.ui.share.IncomingShare): String {
+    val textState = androidx.compose.runtime.remember(share) { androidx.compose.runtime.mutableStateOf(share.text) }
+    androidx.compose.runtime.LaunchedEffect(share) {
+        val file = share.files.firstOrNull() ?: return@LaunchedEffect
+        textState.value = readTranscript(context, android.net.Uri.parse(file.uri), file.name)
+    }
+    return textState.value
+}
+
+@Composable
+private fun rememberVCards(context: android.content.Context, share: com.intelliverse.croman.ui.share.IncomingShare): List<com.intelliverse.croman.domain.VCardFile.Card> {
+    val cardsState = androidx.compose.runtime.remember(share) { androidx.compose.runtime.mutableStateOf(emptyList<com.intelliverse.croman.domain.VCardFile.Card>()) }
+    androidx.compose.runtime.LaunchedEffect(share) {
+        val file = share.files.firstOrNull() ?: return@LaunchedEffect
+        val raw = context.contentResolver.openInputStream(android.net.Uri.parse(file.uri))?.use { it.readBytes() }?.toString(Charsets.UTF_8).orEmpty()
+        cardsState.value = com.intelliverse.croman.domain.VCardFile.parse(raw)
+    }
+    return cardsState.value
+}
+
+private fun readTranscript(context: android.content.Context, uri: android.net.Uri, name: String): String {
+    if (name.endsWith(".zip", true)) {
+        val temp = java.io.File.createTempFile("chat", ".zip", context.cacheDir)
+        context.contentResolver.openInputStream(uri)?.use { input -> temp.outputStream().use { input.copyTo(it) } }
+        java.util.zip.ZipFile(temp).use { zip ->
+            val entry = zip.entries().asSequence().firstOrNull { !it.isDirectory && (it.name.endsWith("_chat.txt") || it.name.endsWith(".txt")) }
+            return entry?.let { zip.getInputStream(it).use { stream -> stream.readBytes().toString(Charsets.UTF_8) } }.orEmpty()
+        }
+    }
+    return context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+}
+
+internal suspend fun importChat(
+    container: com.intelliverse.croman.di.AppContainer,
+    workspaceId: String,
+    log: com.intelliverse.croman.domain.ChatLog,
+    me: String,
+    contactId: String?,
+    newName: String,
+    zip: java.io.File?,
+) {
+    val id = contactId ?: com.intelliverse.croman.domain.Ids.new().also { created ->
+        container.store.saveContact(
+            com.intelliverse.croman.domain.Contact(created, workspaceId, newName, "", "", "", com.intelliverse.croman.domain.ContactKind.OTHER, "whatsapp", "", 0, 0),
+        )
+    }
+    for (line in log.lines) {
+        val attachment = mutableListOf<String>()
+        if (zip != null) {
+            java.util.zip.ZipFile(zip).use { archive ->
+                val names = archive.entries().asSequence().filter { !it.isDirectory }.map { it.name.substringAfterLast('/') }.toList()
+                for (wanted in line.mediaNames) {
+                    val match = names.firstOrNull { it.equals(wanted, true) } ?: continue
+                    val entry = archive.entries().asSequence().first { it.name.substringAfterLast('/').equals(match, true) }
+                    val safe = com.intelliverse.croman.domain.Ids.new() + "-" + match.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val dest = container.photos.file(safe)
+                    archive.getInputStream(entry).use { input -> dest.outputStream().use { input.copyTo(it) } }
+                    attachment += container.store.addDocument(workspaceId, id, safe, match, guessMime(match))
+                }
+            }
+        }
+        val direction = when {
+            line.system -> "unknown"
+            me.isNotBlank() && line.sender == me -> "out"
+            line.sender.isBlank() -> "unknown"
+            else -> "in"
+        }
+        container.store.saveComm(
+            com.intelliverse.croman.domain.CommMessage(
+                com.intelliverse.croman.domain.Ids.new(), workspaceId, id, "whatsapp", direction, line.sender, line.text,
+                line.at, if (line.system) "system" else "imported", com.intelliverse.croman.domain.ChatImport.importKey(line),
+                attachment.joinToString(","), 0, 0,
+            ),
+        )
+    }
+}
+
+internal suspend fun importCards(
+    container: com.intelliverse.croman.di.AppContainer,
+    workspaceId: String,
+    country: String,
+    cards: List<com.intelliverse.croman.domain.VCardFile.Card>,
+) {
+    val people = container.store.observeContacts(workspaceId, "", null).first()
+    for (card in cards) {
+        val numbers = card.phones.mapNotNull { phone ->
+            (com.intelliverse.croman.domain.PhoneLinks.normalize(phone, country) as? com.intelliverse.croman.domain.PhoneNumber.Ready)?.e164
+        }
+        val match = people.firstOrNull { person ->
+            val theirs = (com.intelliverse.croman.domain.PhoneLinks.normalize(person.phone, country) as? com.intelliverse.croman.domain.PhoneNumber.Ready)?.e164
+            theirs != null && theirs in numbers
+        }
+        if (match != null) {
+            container.store.saveContact(match.copy(fullName = match.fullName.ifBlank { card.name }, email = match.email.ifBlank { card.emails.firstOrNull().orEmpty() }))
+        } else {
+            container.store.saveContact(
+                com.intelliverse.croman.domain.Contact(
+                    com.intelliverse.croman.domain.Ids.new(), workspaceId, card.name.ifBlank { numbers.firstOrNull().orEmpty() },
+                    card.phones.firstOrNull().orEmpty(), card.emails.firstOrNull().orEmpty(), "",
+                    com.intelliverse.croman.domain.ContactKind.OTHER, "vcf", "", 0, 0,
+                ),
+            )
+        }
+    }
+}
+
+private fun guessMime(name: String): String = when (name.substringAfterLast('.').lowercase()) {
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    "mp4" -> "video/mp4"
+    "ogg", "opus" -> "audio/ogg"
+    "pdf" -> "application/pdf"
+    else -> "application/octet-stream"
 }

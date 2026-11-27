@@ -193,7 +193,10 @@
     <string name="telegram_username">Имя в Telegram</string>
     <string name="telegram_open">Открыть чат Telegram</string>
     <string name="telegram_share">Поделиться текстом в Telegram</string>
-    <string name="telegram_need_username">Номер телефона не открывает чат Telegram. Добавьте имя пользователя.</string>
+    <string name="telegram_need_username">Добавьте имя Telegram в карточке клиента. Номер телефона чат не открывает.</string>
+    <string name="cd_sms">SMS</string>
+    <string name="cd_email">Почта</string>
+    <string name="email_missing">Добавьте почту в карточке клиента.</string>
     <string name="max_share">Поделиться в MAX</string>
     <string name="call_opened">Открыт набор номера</string>
     <string name="share_title">Сохранить в CRoMan</string>
@@ -208,4 +211,21 @@
     <string name="share_from_other">Из другого приложения</string>
     <string name="share_channel">Передано</string>
     <string name="share_no_workspace">Сначала создайте пространство, затем поделитесь снова.</string>
+    <string name="share_large_video">Это видео больше 100 МБ. Оно хранится у клиента и попадёт в следующую копию, которую вы экспортируете.</string>
+    <string name="share_large_confirm">Сохранить это большое видео</string>
+    <string name="paste_message">Вставить из буфера</string>
+    <string name="import_chat">Импорт переписки или контактов</string>
+    <string name="direction_in">Входящее</string>
+    <string name="direction_out">Исходящее</string>
+    <string name="direction_unknown">Неизвестно</string>
+    <string name="chat_import_title">Импорт переписки</string>
+    <string name="chat_import_save">Импортировать</string>
+    <string name="chat_import_count">Сообщений: %1$d, отправителей: %2$d</string>
+    <string name="chat_import_ambiguous">Даты могут быть день/месяц или месяц/день. Выберите.</string>
+    <string name="chat_import_dmy">День/месяц/год</string>
+    <string name="chat_import_mdy">Месяц/день/год</string>
+    <string name="chat_import_me">Кто из отправителей — вы?</string>
+    <string name="chat_import_not_me">Меня здесь нет</string>
+    <string name="vcf_title">Контакты из карточки</string>
+    <string name="vcf_count">Карточек: %1$d</string>
 </resources>

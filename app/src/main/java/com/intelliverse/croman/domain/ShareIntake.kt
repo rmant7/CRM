@@ -11,6 +11,7 @@ sealed class ShareRead {
 }
 
 object ShareIntake {
+    const val LARGE_FILE = 100L * 1024L * 1024L
     const val SEND = "android.intent.action.SEND"
     const val SEND_MULTIPLE = "android.intent.action.SEND_MULTIPLE"
 
@@ -26,6 +27,7 @@ object ShareIntake {
         return value.startsWith("text/") ||
             value.startsWith("image/") ||
             value.startsWith("audio/") ||
+            value.startsWith("video/") ||
             value.startsWith("application/")
     }
 

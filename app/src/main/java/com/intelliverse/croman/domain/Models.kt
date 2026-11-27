@@ -162,6 +162,7 @@ data class Contact(
     val updatedAt: Long,
     val deletedAt: Long? = null,
     val doNotContact: Boolean = false,
+    val telegram: String = "",
 )
 
 data class EntityRow(
@@ -242,6 +243,22 @@ data class CalendarEvent(
     val endsAt: Long?,
     val contactId: String?,
     val entityId: String?,
+)
+
+data class CommMessage(
+    val id: String,
+    val workspaceId: String,
+    val contactId: String,
+    val channel: String,
+    val direction: String,
+    val senderName: String,
+    val text: String,
+    val sentAt: Long,
+    val status: String,
+    val importKey: String?,
+    val attachmentIds: String,
+    val createdAt: Long,
+    val updatedAt: Long,
 )
 
 data class MessageEntry(

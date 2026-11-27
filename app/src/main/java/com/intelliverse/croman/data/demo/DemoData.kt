@@ -159,6 +159,7 @@ object DemoBackup {
                     run("documents", "DELETE FROM documents WHERE owner_id = ? OR id = ?", arrayOf(id, id))
                     run("activities", "DELETE FROM activities WHERE contact_id = ? OR entity_id = ? OR id = ?", arrayOf(id, id, id))
                     run("message_log", "DELETE FROM message_log WHERE contact_id = ? OR id = ?", arrayOf(id, id))
+                    run("messages", "DELETE FROM messages WHERE contact_id = ? OR id = ?", arrayOf(id, id))
                     run("contacts", "DELETE FROM contacts WHERE id = ?", arrayOf(id))
                     run("entities", "DELETE FROM entities WHERE id = ?", arrayOf(id))
                 }

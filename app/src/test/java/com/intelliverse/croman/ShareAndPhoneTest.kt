@@ -76,7 +76,7 @@ class PhoneAndShareLogicTest {
         assertEquals(2, files.payload.files.size)
         val voice = ShareIntake.read(ShareIntake.SEND, "", listOf(SharedFileHint("audio/ogg", "voice.ogg")), null) as ShareRead.Ok
         assertEquals("share", voice.payload.channel)
-        assertTrue(ShareIntake.read(ShareIntake.SEND, "", listOf(SharedFileHint("video/mp4", "clip.mp4")), null) is ShareRead.Unsupported)
+        assertTrue(ShareIntake.read(ShareIntake.SEND, "", listOf(SharedFileHint("video/mp4", "clip.mp4")), null) is ShareRead.Ok)
         assertTrue(ShareIntake.read(ShareIntake.SEND, "   ", emptyList(), null) is ShareRead.Empty)
     }
 }

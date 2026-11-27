@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -207,6 +208,7 @@ fun EntityDetailScreen(
     val history by store.observeActivities(null, entityId).collectAsStateWithLifecycle(initialValue = emptyList())
     val payments by store.observePayments(entityId).collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
     var confirm by remember { mutableStateOf(false) }
     LaunchedEffect(entityId) {
         val loaded = store.getEntity(entityId)
@@ -219,7 +221,7 @@ fun EntityDetailScreen(
         ready = true
     }
     val type = template.entityTypes.firstOrNull { it.key == typeKey }
-    CrmScaffold(title.ifBlank { stringResource(R.string.not_found) }, onBack, actions = {
+    CrmScaffold(title.ifBlank { stringResource(R.string.not_found) }, onBack, snackbarHostState = snackbar, actions = {
         if (type != null) {
             IconButton(onClick = { onEdit(type.key, entityId) }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.cd_edit)) }
             IconButton(onClick = { confirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete)) }
@@ -254,6 +256,9 @@ fun EntityDetailScreen(
                         TextButton(onClick = {
                             if (relation.target == "contact") onOpenContact(target) else onOpenEntity(target)
                         }) { Text(l10n(relation.label)) }
+                        if (relation.target == "contact") {
+                            com.intelliverse.croman.ui.contacts.LinkedContactActions(target, template.country, scope, snackbar)
+                        }
                     }
                 }
             }
