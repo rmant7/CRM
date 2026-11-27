@@ -108,7 +108,15 @@ class DomainRulesTest {
         assertTrue(lesson.behaviors.contains("weekly_series"))
         assertTrue(lesson.behaviors.contains("package_deduction"))
         assertEquals("לקוחות", realtor.contactProfile?.title?.he)
-        assertTrue(realtor.contactProfile?.kinds.orEmpty().any { it.value == "buyer" })
+        assertEquals(listOf("buyer", "seller", "tenant", "landlord"), realtor.contactProfile?.kinds.orEmpty().map { it.value })
+        assertEquals("Арендодатель", realtor.contactProfile?.kinds.orEmpty().first { it.value == "landlord" }.label.ru)
+        assertEquals("משכיר", realtor.contactProfile?.kinds.orEmpty().first { it.value == "landlord" }.label.he)
+        val listing = realtor.entityTypes.first { it.key == "property" }
+        val deal = realtor.entityTypes.first { it.key == "deal" }
+        assertTrue(listing.relations.any { it.key == "landlord" && it.target == "contact" })
+        assertTrue(deal.relations.any { it.key == "client" })
+        assertTrue(deal.relations.any { it.key == "tenant" && it.target == "contact" })
+        assertTrue(deal.relations.any { it.key == "landlord" && it.target == "contact" })
         listOf(tutor, realtor).forEach { file ->
             file.menu.forEach { item ->
                 assertTrue(item.label.en.isNotBlank())

@@ -8,6 +8,7 @@ import com.intelliverse.croman.data.backup.BackupArchive
 import com.intelliverse.croman.data.backup.BackupMerger
 import com.intelliverse.croman.data.local.CromanDatabase
 import com.intelliverse.croman.data.repo.CromanStore
+import com.intelliverse.croman.data.template.TemplateCatalog
 import com.intelliverse.croman.domain.Contact
 import com.intelliverse.croman.domain.ContactKind
 import com.intelliverse.croman.domain.L10n
@@ -184,6 +185,29 @@ class MergeBackupTest {
         assertEquals("X1", newer.store.contactExtras(id)["reply_class"])
         assertEquals("LinkedIn", newer.store.contactExtras(id)["source"])
         newer.db.close()
+    }
+
+    @Test
+    fun landlordRoleAndRentalLinksSurviveAMerge() = runBlocking {
+        val source = world("in-landlord", 5_000L)
+        val template = TemplateCatalog.load(context, "realtor")
+        val ws = source.store.installWorkspace(template, "Office")
+        val landlord = "33333333-3333-4333-8333-333333333333"
+        val tenant = "44444444-4444-4444-8444-444444444444"
+        val deal = "55555555-5555-4555-8555-555555555555"
+        source.store.saveContact(person(landlord, ws, "Ilan", "1").copy(kind = ContactKind.LANDLORD))
+        source.store.saveContact(person(tenant, ws, "Noa", "2").copy(kind = ContactKind.TENANT))
+        val type = template.entityTypes.first { it.key == "deal" }
+        source.store.saveEntity(ws, deal, type, "Allenby rent", "lead", emptyMap(), mapOf("tenant" to tenant, "landlord" to landlord))
+        val archive = export(source)
+        val local = world("loc-landlord", 1_000L)
+        BackupMerger.merge(local.db.openHelper.writableDatabase, unpacked(archive), photosOf(archive), local.photos)
+        assertEquals(ContactKind.LANDLORD, local.store.getContact(landlord)?.kind)
+        assertEquals(ContactKind.TENANT, local.store.getContact(tenant)?.kind)
+        val links = local.store.entityRelations(deal)
+        assertEquals(landlord, links["landlord"])
+        assertEquals(tenant, links["tenant"])
+        local.db.close()
     }
 
     private fun unpacked(archive: File): File {

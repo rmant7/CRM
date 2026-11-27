@@ -3,6 +3,8 @@ package com.intelliverse.croman.ui.contacts
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -106,7 +108,10 @@ fun ContactsScreen(workspaceId: String, template: TemplateFile, onOpen: (String)
             }
             val kinds = profile?.kinds.orEmpty()
             if (kinds.isNotEmpty()) {
-                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
                     kinds.forEach { option ->
                         val selected = kind?.name.equals(option.value, true)
                         Text(
@@ -170,7 +175,8 @@ fun ContactDetailScreen(
     var chatZip by remember { mutableStateOf<java.io.File?>(null) }
     var vcards by remember { mutableStateOf<List<com.intelliverse.croman.domain.VCardFile.Card>?>(null) }
     val people by store.observeContacts(workspaceId, "", null).collectAsStateWithLifecycle(initialValue = emptyList())
-    val deals by store.observeLinked(workspaceId, "deal", "client", contactId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val deals by store.observeLinked(workspaceId, "deal", setOf("client", "tenant", "landlord"), contactId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val listings by store.observeLinked(workspaceId, "property", setOf("landlord"), contactId).collectAsStateWithLifecycle(initialValue = emptyList())
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val openImport = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
@@ -284,6 +290,9 @@ fun ContactDetailScreen(
             }
             items(deals, key = { it.id }) { deal ->
                 TextButton(onClick = { onOpenEntity(deal.id) }) { Text(deal.title) }
+            }
+            items(listings, key = { "listing-" + it.id }) { listing ->
+                TextButton(onClick = { onOpenEntity(listing.id) }) { Text(listing.title) }
             }
             item { SectionTitle(stringResource(R.string.history)) }
             item {
@@ -484,7 +493,15 @@ fun ContactEditorScreen(workspaceId: String, template: TemplateFile, contactId: 
             item { LtrField(email, { email = it }, stringResource(R.string.contact_email)) }
             item { LtrField(telegramUser, { telegramUser = it }, stringResource(R.string.telegram_username)) }
             if (show("company")) item { OutlinedTextField(company, { company = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_company)) }, singleLine = true) }
-            if (show("kind")) item { CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), ContactKind.entries, { stringResource(it.label()) }) { kind = it } }
+            if (show("kind")) item {
+                val fromProfile = template.contactProfile?.kinds?.mapNotNull { option ->
+                    runCatching { ContactKind.valueOf(option.value.uppercase()) }.getOrNull()
+                }.orEmpty()
+                val kindOptions = (if (fromProfile.isEmpty()) ContactKind.entries else fromProfile).let { options ->
+                    if (kind in options) options else options + kind
+                }
+                CrmDropdown(stringResource(R.string.contact_kind), stringResource(kind.label()), kindOptions, { stringResource(it.label()) }) { kind = it }
+            }
             if (show("source")) item { OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_source)) }, singleLine = true) }
             if (show("note")) item { OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.contact_note)) }, minLines = 2) }
             items(extraFields.filter { it.key != com.intelliverse.croman.domain.ConsultationCard.REPLY }, key = { it.key }) { field ->

@@ -309,8 +309,13 @@ class CromanStore(
         database().contacts().get(id)?.toModel()?.takeIf { it.deletedAt == null }
 
     fun observeLinked(workspaceId: String, typeKey: String, relationKey: String, targetId: String): Flow<List<EntityRow>> =
+        observeLinked(workspaceId, typeKey, setOf(relationKey), targetId)
+
+    fun observeLinked(workspaceId: String, typeKey: String, relationKeys: Set<String>, targetId: String): Flow<List<EntityRow>> =
         observeEntities(workspaceId, typeKey, "", null, emptyMap()).map { rows ->
-            rows.filter { database().entities().relations(it.id).any { relation -> relation.relationKey == relationKey && relation.toId == targetId } }
+            rows.filter { row ->
+                database().entities().relations(row.id).any { relation -> relation.relationKey in relationKeys && relation.toId == targetId }
+            }
         }
 
     suspend fun getEntity(id: String): EntityRow? =
